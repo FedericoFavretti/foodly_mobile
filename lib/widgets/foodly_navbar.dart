@@ -4,9 +4,18 @@ import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
 
 class FoodlyNavbar extends StatelessWidget {
-  const FoodlyNavbar({super.key, this.onLoginTap});
+  const FoodlyNavbar({
+    super.key,
+    this.onLoginTap,
+    this.actionLabel = 'INGRESAR',
+    this.onActionTap,
+    this.trailing,
+  });
 
   final VoidCallback? onLoginTap;
+  final String actionLabel;
+  final VoidCallback? onActionTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -34,8 +43,9 @@ class FoodlyNavbar extends StatelessWidget {
                 ),
               ),
             ),
+            ?trailing,
             TextButton(
-              onPressed: onLoginTap,
+              onPressed: onActionTap ?? onLoginTap,
               style: TextButton.styleFrom(
                 backgroundColor: FoodlyColors.blanco,
                 foregroundColor: FoodlyColors.celeste,
@@ -47,7 +57,7 @@ class FoodlyNavbar extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'INGRESAR',
+                actionLabel,
                 style: FoodlyTheme.sansBold.copyWith(
                   fontSize: 11,
                   letterSpacing: 0.5,
