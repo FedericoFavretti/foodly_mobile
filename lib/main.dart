@@ -27,6 +27,7 @@ class FoodlyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Foodly',
       debugShowCheckedModeBanner: false,
+      scrollBehavior: const MaterialScrollBehavior().copyWith(overscroll: false),
       theme: FoodlyTheme.light.copyWith(
         inputDecorationTheme: InputDecorationTheme(
           filled: true,

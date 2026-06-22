@@ -20,6 +20,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: CustomScrollView(
+        physics: const ClampingScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
             child: FoodlyNavbar(
@@ -114,6 +115,7 @@ class _MostOrderedSection extends StatelessWidget {
             height: 280,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
+              physics: const ClampingScrollPhysics(),
               itemCount: foodItems.length,
               itemBuilder: (context, index) {
                 return FoodCard(item: foodItems[index]);
@@ -166,6 +168,7 @@ class _HowItWorksSection extends StatelessWidget {
             height: 400,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
+              physics: const ClampingScrollPhysics(),
               itemCount: howItWorksSteps.length,
               itemBuilder: (context, index) {
                 return StepCard(step: howItWorksSteps[index]);

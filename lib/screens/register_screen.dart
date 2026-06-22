@@ -144,8 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         '/',
         (_) => false,
       ),
-      child: SingleChildScrollView(
-        child: Form(
+      child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -310,7 +309,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 }

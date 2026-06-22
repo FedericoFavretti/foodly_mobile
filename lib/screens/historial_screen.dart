@@ -31,6 +31,14 @@ class _HistorialScreenState extends State<HistorialScreen> {
     setState(() => _historialFuture = _pedidoRepository.listarHistorial());
   }
 
+  Future<void> _refreshHistorial() async {
+    final future = _pedidoRepository.listarHistorial();
+    setState(() => _historialFuture = future);
+    try {
+      await future;
+    } catch (_) {}
+  }
+
   Future<void> _reclamar(PedidoResponseModel pedido) async {
     final motivo = TextEditingController();
     final compensacion = TextEditingController();
@@ -298,22 +306,28 @@ class _HistorialScreenState extends State<HistorialScreen> {
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final p = filtered[index];
-                    return _PedidoCard(
-                      pedido: p,
-                      onCancel: p.estado == 'Pendiente'
-                          ? () => _cancelar(p)
-                          : null,
-                      onReclamar: p.estado == 'Confirmado'
-                          ? () => _reclamar(p)
-                          : null,
-                      onCalificar: () => _calificar(p),
-                    );
-                  },
+                return RefreshIndicator(
+                  onRefresh: _refreshHistorial,
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: ClampingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final p = filtered[index];
+                      return _PedidoCard(
+                        pedido: p,
+                        onCancel: p.estado == 'Pendiente'
+                            ? () => _cancelar(p)
+                            : null,
+                        onReclamar: p.estado == 'Confirmado'
+                            ? () => _reclamar(p)
+                            : null,
+                        onCalificar: () => _calificar(p),
+                      );
+                    },
+                  ),
                 );
               },
             ),

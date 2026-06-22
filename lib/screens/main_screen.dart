@@ -50,10 +50,23 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  Future<void> _refreshLocales() async {
+    final future = _catalogRepository.listarLocales();
+    setState(() => _localesFuture = future);
+    try {
+      await future;
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
+      body: RefreshIndicator(
+        onRefresh: _refreshLocales,
+        child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: ClampingScrollPhysics(),
+        ),
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
@@ -202,6 +215,7 @@ class _MainScreenState extends State<MainScreen> {
             },
           ),
         ],
+        ),
       ),
     );
   }
