@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/errors/api_exception.dart';
 import '../data/models/pedido_response_model.dart';
 import '../data/repositories/pedido_repository.dart';
+import '../screens/home_screen.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
 
@@ -18,32 +19,64 @@ class HistorialScreen extends StatefulWidget {
 
 class _HistorialScreenState extends State<HistorialScreen> {
   final _pedidoRepository = PedidoRepository();
-  late Future<List<PedidoResponseModel>> _historialFuture;
+
+  bool _isLoading = true;
+  Object? _error;
+  List<PedidoResponseModel>? _data;
   String? _filtroEstado;
 
   @override
   void initState() {
     super.initState();
-    _historialFuture = _pedidoRepository.listarHistorial();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _pedidoRepository.listarHistorial();
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _data = data;
+      });
+    } on SessionExpiredException {
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context, HomeScreen.routeName, (_) => false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = e;
+      });
+    }
   }
 
   void _reload() {
-    setState(() => _historialFuture = _pedidoRepository.listarHistorial());
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    _load();
   }
 
-  Future<void> _refreshHistorial() async {
-    final future = _pedidoRepository.listarHistorial();
-    setState(() => _historialFuture = future);
+  Future<void> _onRefresh() async {
     try {
-      await future;
+      final data = await _pedidoRepository.listarHistorial();
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _error = null;
+      });
     } catch (_) {}
   }
 
   Future<void> _reclamar(PedidoResponseModel pedido) async {
     final motivo = TextEditingController();
     final compensacion = TextEditingController();
-
-    final result = await showDialog<bool>(
+    bool? result;
+    try {
+      result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Realizar reclamo'),
@@ -102,6 +135,10 @@ class _HistorialScreenState extends State<HistorialScreen> {
         ],
       ),
     );
+    } finally {
+      motivo.dispose();
+      compensacion.dispose();
+    }
 
     if (result != true || !mounted) return;
 
@@ -117,8 +154,9 @@ class _HistorialScreenState extends State<HistorialScreen> {
   Future<void> _calificar(PedidoResponseModel pedido) async {
     int puntaje = 0;
     final comentario = TextEditingController();
-
-    final result = await showDialog<bool>(
+    bool? result;
+    try {
+      result = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -180,6 +218,9 @@ class _HistorialScreenState extends State<HistorialScreen> {
         ),
       ),
     );
+    } finally {
+      comentario.dispose();
+    }
 
     if (result != true || !mounted) return;
 
@@ -197,7 +238,8 @@ class _HistorialScreenState extends State<HistorialScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancelar pedido'),
-        content: Text('¿Cancelar el pedido Nº ${pedido.id} de ${pedido.localNombre}?'),
+        content: Text(
+            '¿Cancelar el pedido Nº ${pedido.id} de ${pedido.localNombre}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -240,6 +282,110 @@ class _HistorialScreenState extends State<HistorialScreen> {
         .toList();
   }
 
+  Widget _buildContent() {
+    if (_isLoading && _data == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      final message = _error is ApiException
+          ? (_error as ApiException).userMessage
+          : _error is NetworkException
+              ? (_error as NetworkException).userMessage
+              : 'Ocurrió un error al cargar el historial.';
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: FoodlyColors.grisIntermedio,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _reload,
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final all = _data ?? [];
+
+    if (all.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Aún no ha realizado ningún pedido. ¡Explore los locales disponibles y realice su primer pedido!',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunito(
+              fontSize: 15,
+              color: FoodlyColors.grisIntermedio,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final filtered = _applyFilter(all);
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'No se encontraron pedidos que coincidan con los criterios seleccionados.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: FoodlyColors.grisIntermedio,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => setState(() => _filtroEstado = null),
+                child: const Text('Limpiar filtro'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) {
+        final p = filtered[index];
+        return _PedidoCard(
+          pedido: p,
+          onCancel: p.estado.toLowerCase() == 'pendiente'
+              ? () => _cancelar(p)
+              : null,
+          onReclamar: p.estado.toLowerCase() == 'confirmado'
+              ? () => _reclamar(p)
+              : null,
+          onCalificar: () => _calificar(p),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -260,76 +406,33 @@ class _HistorialScreenState extends State<HistorialScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                _FilterChip(label: 'Todos', active: _filtroEstado == null, onTap: () => setState(() => _filtroEstado = null)),
-                _FilterChip(label: 'Pendiente', active: _filtroEstado == 'Pendiente', onTap: () => setState(() => _filtroEstado = 'Pendiente')),
-                _FilterChip(label: 'Confirmado', active: _filtroEstado == 'Confirmado', onTap: () => setState(() => _filtroEstado = 'Confirmado')),
-                _FilterChip(label: 'Cancelado', active: _filtroEstado == 'Cancelado', onTap: () => setState(() => _filtroEstado = 'Cancelado')),
-                _FilterChip(label: 'Rechazado', active: _filtroEstado == 'Rechazado', onTap: () => setState(() => _filtroEstado = 'Rechazado')),
+                _FilterChip(
+                    label: 'Todos',
+                    active: _filtroEstado == null,
+                    onTap: () => setState(() => _filtroEstado = null)),
+                _FilterChip(
+                    label: 'Pendiente',
+                    active: _filtroEstado == 'Pendiente',
+                    onTap: () => setState(() => _filtroEstado = 'Pendiente')),
+                _FilterChip(
+                    label: 'Confirmado',
+                    active: _filtroEstado == 'Confirmado',
+                    onTap: () => setState(() => _filtroEstado = 'Confirmado')),
+                _FilterChip(
+                    label: 'Cancelado',
+                    active: _filtroEstado == 'Cancelado',
+                    onTap: () => setState(() => _filtroEstado = 'Cancelado')),
+                _FilterChip(
+                    label: 'Rechazado',
+                    active: _filtroEstado == 'Rechazado',
+                    onTap: () => setState(() => _filtroEstado = 'Rechazado')),
               ],
             ),
           ),
           Expanded(
-            child: FutureBuilder<List<PedidoResponseModel>>(
-              future: _historialFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  final message = snapshot.error is ApiException
-                      ? (snapshot.error as ApiException).userMessage
-                      : snapshot.error is NetworkException
-                          ? (snapshot.error as NetworkException).userMessage
-                          : 'Ocurrió un error al cargar el historial.';
-                  return _CenterMessage(
-                    message: message,
-                    onRetry: _reload,
-                  );
-                }
-
-                final all = snapshot.data ?? [];
-
-                if (all.isEmpty) {
-                  return const _CenterMessage(
-                    message:
-                        'Aún no ha realizado ningún pedido. ¡Explore los locales disponibles y realice su primer pedido!',
-                  );
-                }
-
-                final filtered = _applyFilter(all);
-
-                if (filtered.isEmpty) {
-                  return const _CenterMessage(
-                    message:
-                        'No se encontraron pedidos que coincidan con los criterios seleccionados.',
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: _refreshHistorial,
-                  child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: ClampingScrollPhysics(),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final p = filtered[index];
-                      return _PedidoCard(
-                        pedido: p,
-                        onCancel: p.estado == 'Pendiente'
-                            ? () => _cancelar(p)
-                            : null,
-                        onReclamar: p.estado == 'Confirmado'
-                            ? () => _reclamar(p)
-                            : null,
-                        onCalificar: () => _calificar(p),
-                      );
-                    },
-                  ),
-                );
-              },
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: _buildContent(),
             ),
           ),
         ],
@@ -376,14 +479,14 @@ class _PedidoCard extends StatelessWidget {
   final VoidCallback? onCalificar;
 
   Color _estadoColor() {
-    switch (pedido.estado) {
-      case 'Pendiente':
+    switch (pedido.estado.toLowerCase()) {
+      case 'pendiente':
         return FoodlyColors.amarillo;
-      case 'Confirmado':
+      case 'confirmado':
         return FoodlyColors.celeste;
-      case 'Cancelado':
+      case 'cancelado':
         return FoodlyColors.grisIntermedio;
-      case 'Rechazado':
+      case 'rechazado':
         return const Color(0xFFD32F2F);
       default:
         return FoodlyColors.grisIntermedio;
@@ -478,39 +581,6 @@ class _PedidoCard extends StatelessWidget {
                   ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CenterMessage extends StatelessWidget {
-  const _CenterMessage({required this.message, this.onRetry});
-
-  final String message;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(
-                fontSize: 15,
-                color: FoodlyColors.grisIntermedio,
-              ),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 16),
-              TextButton(onPressed: onRetry, child: const Text('Reintentar')),
-            ],
           ],
         ),
       ),

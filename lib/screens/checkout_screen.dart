@@ -61,7 +61,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _cpController.text = direccion.codigoPostal ?? '';
       }
     } catch (_) {
-      // El usuario completa manualmente.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'No pudimos cargar tu dirección guardada. Completá los campos manualmente.'),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loadingProfile = false);
     }
@@ -218,7 +225,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(height: 24),
                   FoodlyButton(
                     label: _submitting ? 'CONFIRMANDO...' : 'REALIZAR PEDIDO',
-                    onPressed: _submitting ? null : _confirmarPedido,
+                    onPressed: (_submitting ||
+                            _catalogRepository.usesMockData ||
+                            ApiConstants.useMockCatalog)
+                        ? null
+                        : _confirmarPedido,
                   ),
                 ],
               ),

@@ -37,8 +37,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _documentoController = TextEditingController();
   final _calleController = TextEditingController();
   final _numeroController = TextEditingController();
-  final _ciudadController = TextEditingController(text: 'Montevideo');
-  final _codigoPostalController = TextEditingController(text: '11000');
+  final _ciudadController = TextEditingController();
+  final _codigoPostalController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -231,6 +231,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 enabled: !_isLoading,
                 decoration: const InputDecoration(hintText: 'Ciudad'),
                 validator: (v) => FormValidators.requiredField(v, 'la ciudad'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _codigoPostalController,
+                keyboardType: TextInputType.number,
+                enabled: !_isLoading,
+                decoration: const InputDecoration(hintText: 'Código postal (opcional)'),
               ),
               const SizedBox(height: 12),
               TextFormField(

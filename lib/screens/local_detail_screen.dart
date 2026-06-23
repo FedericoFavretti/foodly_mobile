@@ -13,11 +13,12 @@ import '../widgets/cart_fab.dart';
 import '../widgets/plato_card.dart';
 
 class LocalDetailScreen extends StatefulWidget {
-  const LocalDetailScreen({super.key, required this.localId});
+  const LocalDetailScreen({super.key, required this.localId, this.local});
 
   static const routeName = '/local';
 
   final int localId;
+  final LocalModel? local;
 
   @override
   State<LocalDetailScreen> createState() => _LocalDetailScreenState();
@@ -27,23 +28,65 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
   final _repository = CatalogRepository();
   final _searchController = TextEditingController();
 
-  late Future<_LocalDetailData> _dataFuture;
+  bool _isLoading = true;
+  Object? _error;
+  _LocalDetailData? _data;
   String _query = '';
   PlatoSortOption _sort = PlatoSortOption.nombre;
 
   @override
   void initState() {
     super.initState();
-    _dataFuture = _loadData();
     _searchController.addListener(() {
       setState(() => _query = _searchController.text);
     });
+    _load();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<_LocalDetailData> _loadData() async {
+    final local = widget.local ?? await _repository.obtenerLocal(widget.localId);
+    if (local == null) {
+      throw const ApiException(
+        statusCode: 404,
+        userMessage: 'El local solicitado no existe.',
+      );
+    }
+    final platos = await _repository.platosDeLocal(widget.localId);
+    return _LocalDetailData(local: local, platos: platos);
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _loadData();
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _data = data;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = e;
+      });
+    }
+  }
+
+  Future<void> _refreshData() async {
+    try {
+      final data = await _loadData();
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _error = null;
+      });
+    } catch (_) {}
   }
 
   Future<void> _agregarPlato(
@@ -89,16 +132,125 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
     }
   }
 
-  Future<_LocalDetailData> _loadData() async {
-    final local = await _repository.obtenerLocal(widget.localId);
-    if (local == null) {
-      throw const ApiException(
-        statusCode: 404,
-        userMessage: 'El local solicitado no existe.',
+  Widget _buildBody() {
+    if (_isLoading && _data == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      final message = _error is ApiException
+          ? (_error as ApiException).userMessage
+          : _error is NetworkException
+              ? (_error as NetworkException).userMessage
+              : 'Ocurrió un error al cargar el local.';
+      return _MessageState(
+        message: message,
+        onRetry: () {
+          setState(() {
+            _isLoading = true;
+            _error = null;
+          });
+          _load();
+        },
       );
     }
-    final platos = await _repository.platosDeLocal(widget.localId);
-    return _LocalDetailData(local: local, platos: platos);
+
+    final data = _data!;
+    final platos = CatalogFilter.filterPlatos(
+      platos: data.platos,
+      localId: widget.localId,
+      query: _query,
+      sort: _sort,
+    );
+
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data.local.nombre,
+                  style: FoodlyTheme.serifTitle.copyWith(fontSize: 26),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  data.local.descripcion,
+                  style: GoogleFonts.nunito(
+                    fontSize: 15,
+                    color: FoodlyColors.grisIntermedio,
+                  ),
+                ),
+                if (!data.local.estaAbierto) ...[
+                  const SizedBox(height: 12),
+                  _ClosedBanner(),
+                ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar plato...',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<PlatoSortOption>(
+                  initialValue: _sort,
+                  decoration: const InputDecoration(
+                    labelText: 'Ordenar por',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: PlatoSortOption.nombre,
+                      child: Text('Nombre'),
+                    ),
+                    DropdownMenuItem(
+                      value: PlatoSortOption.precio,
+                      child: Text('Precio'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _sort = value);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (platos.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _MessageState(
+              message: 'No se encontraron platos o promociones que coincidan con su búsqueda.',
+              onRetry: _query.isNotEmpty ? () => _searchController.clear() : null,
+              retryLabel: 'Limpiar búsqueda',
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final plato = platos[index];
+                  return PlatoCard(
+                    plato: plato,
+                    canAdd: data.local.estaAbierto,
+                    onAdd: () => _agregarPlato(context, data, plato),
+                  );
+                },
+                childCount: platos.length,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -107,125 +259,16 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
       floatingActionButton: const CartFab(),
       appBar: AppBar(
         title: Text(
-          'Platos',
+          _data?.local.nombre ?? 'Platos',
           style: FoodlyTheme.serifTitle.copyWith(fontSize: 22),
         ),
         backgroundColor: FoodlyColors.blanco,
         foregroundColor: FoodlyColors.grisOscuro,
         elevation: 0,
       ),
-      body: FutureBuilder<_LocalDetailData>(
-        future: _dataFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            final message = snapshot.error is ApiException
-                ? (snapshot.error as ApiException).userMessage
-                : snapshot.error is NetworkException
-                    ? (snapshot.error as NetworkException).userMessage
-                    : 'Ocurrió un error al cargar el local.';
-            return _MessageState(
-              message: message,
-              onRetry: () => setState(() => _dataFuture = _loadData()),
-            );
-          }
-
-          final data = snapshot.data!;
-          final platos = CatalogFilter.filterPlatos(
-            platos: data.platos,
-            localId: widget.localId,
-            query: _query,
-            sort: _sort,
-          );
-
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        data.local.nombre,
-                        style: FoodlyTheme.serifTitle.copyWith(fontSize: 26),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        data.local.descripcion,
-                        style: GoogleFonts.nunito(
-                          fontSize: 15,
-                          color: FoodlyColors.grisIntermedio,
-                        ),
-                      ),
-                      if (!data.local.estaAbierto) ...[
-                        const SizedBox(height: 12),
-                        _ClosedBanner(),
-                      ],
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
-                          hintText: 'Buscar plato...',
-                          prefixIcon: Icon(Icons.search),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<PlatoSortOption>(
-                        initialValue: _sort,
-                        decoration: const InputDecoration(
-                          labelText: 'Ordenar por',
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: PlatoSortOption.nombre,
-                            child: Text('Nombre'),
-                          ),
-                          DropdownMenuItem(
-                            value: PlatoSortOption.precio,
-                            child: Text('Precio'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() => _sort = value);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (platos.isEmpty)
-                const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: _MessageState(
-                    message:
-                        'No se encontraron platos o promociones que coincidan con su búsqueda.',
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final plato = platos[index];
-                        return PlatoCard(
-                          plato: plato,
-                          canAdd: data.local.estaAbierto,
-                          onAdd: () => _agregarPlato(context, data, plato),
-                        );
-                      },
-                      childCount: platos.length,
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: _buildBody(),
       ),
     );
   }
@@ -261,10 +304,11 @@ class _ClosedBanner extends StatelessWidget {
 }
 
 class _MessageState extends StatelessWidget {
-  const _MessageState({required this.message, this.onRetry});
+  const _MessageState({required this.message, this.onRetry, this.retryLabel = 'Reintentar'});
 
   final String message;
   final VoidCallback? onRetry;
+  final String retryLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +328,7 @@ class _MessageState extends StatelessWidget {
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
-              TextButton(onPressed: onRetry, child: const Text('Reintentar')),
+              TextButton(onPressed: onRetry, child: Text(retryLabel)),
             ],
           ],
         ),

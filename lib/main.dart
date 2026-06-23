@@ -6,6 +6,8 @@ import 'theme/foodly_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'data/models/pedido_response_model.dart';
+import 'domain/session/session_manager.dart';
+import 'data/models/local_model.dart';
 import 'screens/app_shell.dart';
 import 'screens/cart_screen.dart';
 import 'screens/checkout_screen.dart';
@@ -65,9 +67,9 @@ class FoodlyApp extends StatelessWidget {
       ),
       initialRoute: HomeScreen.routeName,
       routes: {
-        HomeScreen.routeName: (_) => const HomeScreen(),
+        HomeScreen.routeName: (_) => const _AppStartup(),
         LoginScreen.routeName: (_) => const LoginScreen(),
-        MainScreen.routeName: (_) => const AuthGate(child: AppShell()),
+        MainScreen.routeName: (_) => const AuthGate(child: _AppShellRoute()),
         LocalDetailScreen.routeName: (_) => const AuthGate(
               child: _LocalDetailRoute(),
             ),
@@ -82,18 +84,31 @@ class FoodlyApp extends StatelessWidget {
   }
 }
 
+class _AppShellRoute extends StatelessWidget {
+  const _AppShellRoute();
+
+  @override
+  Widget build(BuildContext context) {
+    final arg = ModalRoute.of(context)?.settings.arguments;
+    return AppShell(initialIndex: arg is int ? arg : 0);
+  }
+}
+
 class _LocalDetailRoute extends StatelessWidget {
   const _LocalDetailRoute();
 
   @override
   Widget build(BuildContext context) {
-    final localId = ModalRoute.of(context)?.settings.arguments;
-    if (localId is! int) {
-      return const Scaffold(
-        body: Center(child: Text('Local no especificado.')),
-      );
+    final arg = ModalRoute.of(context)?.settings.arguments;
+    if (arg is LocalModel) {
+      return LocalDetailScreen(localId: arg.id, local: arg);
     }
-    return LocalDetailScreen(localId: localId);
+    if (arg is int) {
+      return LocalDetailScreen(localId: arg);
+    }
+    return const Scaffold(
+      body: Center(child: Text('Local no especificado.')),
+    );
   }
 }
 
@@ -109,6 +124,46 @@ class _OrderStatusRoute extends StatelessWidget {
       );
     }
     return OrderStatusScreen(pedido: pedido);
+  }
+}
+
+class _AppStartup extends StatefulWidget {
+  const _AppStartup();
+
+  @override
+  State<_AppStartup> createState() => _AppStartupState();
+}
+
+class _AppStartupState extends State<_AppStartup> {
+  bool _ready = false;
+  bool _hasSession = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    final hasSession = await SessionManager.hasSession();
+    if (!mounted) return;
+    if (hasSession) {
+      Navigator.pushReplacementNamed(context, MainScreen.routeName);
+    } else {
+      setState(() {
+        _hasSession = false;
+        _ready = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_ready && !_hasSession) return const HomeScreen();
+    return const Scaffold(
+      backgroundColor: FoodlyColors.blanco,
+      body: Center(child: CircularProgressIndicator()),
+    );
   }
 }
 

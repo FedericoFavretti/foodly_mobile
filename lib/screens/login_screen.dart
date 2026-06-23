@@ -106,7 +106,24 @@ class _LoginScreenState extends State<LoginScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: _isLoading ? null : () {},
+                onPressed: _isLoading
+                    ? null
+                    : () => showDialog<void>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Recuperar contraseña'),
+                            content: const Text(
+                              'La recuperación de contraseña desde la app no está disponible aún. '
+                              'Contactá con soporte para restablecer tu acceso.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Entendido'),
+                              ),
+                            ],
+                          ),
+                        ),
                 child: Text(
                   '¿Olvidaste tu contraseña?',
                   style: FoodlyTheme.sansBold.copyWith(

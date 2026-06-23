@@ -7,32 +7,36 @@ import 'main_screen.dart';
 import 'profile_screen.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
 class _AppShellState extends State<AppShell> {
-  int _currentIndex = 0;
-
-  static const _screens = <Widget>[
-    MainScreen(),
-    HistorialScreen(),
-    ProfileScreen(),
-  ];
+  late int _currentIndex = widget.initialIndex;
+  late final Set<int> _loaded = {widget.initialIndex};
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: [
+          const MainScreen(),
+          _loaded.contains(1) ? const HistorialScreen() : const SizedBox.shrink(),
+          _loaded.contains(2) ? const ProfileScreen() : const SizedBox.shrink(),
+        ],
       ),
-      floatingActionButton: _currentIndex == 0 ? const CartFab() : null,
+      floatingActionButton: const CartFab(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) => setState(() {
+          _loaded.add(index);
+          _currentIndex = index;
+        }),
         selectedItemColor: FoodlyColors.celeste,
         unselectedItemColor: FoodlyColors.grisIntermedio,
         items: const [

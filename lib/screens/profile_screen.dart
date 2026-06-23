@@ -19,12 +19,47 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _profileRepository = ClienteProfileRepository();
   final _authRepository = AuthRepository();
-  late Future<ClienteProfileModel> _profileFuture;
+
+  bool _isLoading = true;
+  Object? _error;
+  ClienteProfileModel? _data;
 
   @override
   void initState() {
     super.initState();
-    _profileFuture = _profileRepository.getOrFetch();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _profileRepository.getOrFetch();
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _data = data;
+      });
+    } on SessionExpiredException {
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context, HomeScreen.routeName, (_) => false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = e;
+      });
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    try {
+      final data = await _profileRepository.getOrFetch();
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _error = null;
+      });
+    } catch (_) {}
   }
 
   Future<void> _logout() async {
@@ -57,6 +92,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildContent() {
+    if (_isLoading && _data == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      final message = _error is ApiException
+          ? (_error as ApiException).userMessage
+          : 'No pudimos cargar tu perfil.';
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: FoodlyColors.grisIntermedio,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _error = null;
+                  });
+                  _load();
+                },
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final profile = _data!;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.all(16),
+      children: [
+        _ProfileHeader(profile: profile),
+        const SizedBox(height: 24),
+        _InfoTile(
+          icon: Icons.email_outlined,
+          label: 'Correo electrónico',
+          value: profile.email,
+        ),
+        if (profile.direccion != null) ...[
+          const SizedBox(height: 12),
+          _InfoTile(
+            icon: Icons.location_on_outlined,
+            label: 'Dirección',
+            value: profile.direccion!.resumen,
+          ),
+        ],
+        const SizedBox(height: 32),
+        const Divider(),
+        const SizedBox(height: 16),
+        _SectionTitle(title: 'Cuenta'),
+        const SizedBox(height: 12),
+        ListTile(
+          leading: const Icon(
+            Icons.logout,
+            color: Color(0xFFD32F2F),
+          ),
+          title: Text(
+            'Cerrar sesión',
+            style: GoogleFonts.nunito(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFFD32F2F),
+            ),
+          ),
+          onTap: _logout,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -70,90 +193,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         foregroundColor: FoodlyColors.grisOscuro,
         elevation: 0,
       ),
-      body: FutureBuilder<ClienteProfileModel>(
-        future: _profileFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            final message = snapshot.error is ApiException
-                ? (snapshot.error as ApiException).userMessage
-                : 'No pudimos cargar tu perfil.';
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.nunito(
-                        fontSize: 15,
-                        color: FoodlyColors.grisIntermedio,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _profileFuture = _profileRepository.getOrFetch();
-                        });
-                      },
-                      child: const Text('Reintentar'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          final profile = snapshot.data!;
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _ProfileHeader(profile: profile),
-              const SizedBox(height: 24),
-              _InfoTile(
-                icon: Icons.email_outlined,
-                label: 'Correo electrónico',
-                value: profile.email,
-              ),
-              if (profile.direccion != null) ...[
-                const SizedBox(height: 12),
-                _InfoTile(
-                  icon: Icons.location_on_outlined,
-                  label: 'Dirección',
-                  value: profile.direccion!.resumen,
-                ),
-              ],
-              const SizedBox(height: 32),
-              const Divider(),
-              const SizedBox(height: 16),
-              _SectionTitle(title: 'Cuenta'),
-              const SizedBox(height: 12),
-              ListTile(
-                leading: const Icon(
-                  Icons.logout,
-                  color: Color(0xFFD32F2F),
-                ),
-                title: Text(
-                  'Cerrar sesión',
-                  style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFFD32F2F),
-                  ),
-                ),
-                onTap: _logout,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ],
-          );
-        },
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: _buildContent(),
       ),
     );
   }

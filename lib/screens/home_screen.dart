@@ -10,7 +10,7 @@ import '../widgets/foodly_button.dart';
 import '../widgets/foodly_navbar.dart';
 import '../widgets/step_card.dart';
 import '../widgets/wavy_accent.dart';
-
+import 'login_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -76,7 +76,7 @@ class _HeroSection extends StatelessWidget {
           FoodlyButton(
             label: 'ORDENA AHORA',
             variant: FoodlyButtonVariant.outline,
-            onPressed: () {},
+            onPressed: () => Navigator.pushNamed(context, LoginScreen.routeName),
           ),
         ],
       ),
@@ -128,7 +128,7 @@ class _MostOrderedSection extends StatelessWidget {
             child: FoodlyButton(
               label: 'OTRAS OPCIONES',
               variant: FoodlyButtonVariant.outline,
-              onPressed: () {},
+              onPressed: () => Navigator.pushNamed(context, LoginScreen.routeName),
             ),
           ),
         ],
@@ -180,7 +180,7 @@ class _HowItWorksSection extends StatelessWidget {
             padding: const EdgeInsets.only(right: 16),
             child: FoodlyButton(
               label: 'ORDENA AHORA',
-              onPressed: () {},
+              onPressed: () => Navigator.pushNamed(context, LoginScreen.routeName),
             ),
           ),
         ],

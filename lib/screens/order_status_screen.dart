@@ -106,6 +106,19 @@ class OrderStatusScreen extends StatelessWidget {
                 );
               },
             ),
+            const SizedBox(height: 12),
+            FoodlyButton(
+              label: 'VER MIS PEDIDOS',
+              variant: FoodlyButtonVariant.outline,
+              onPressed: () {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  MainScreen.routeName,
+                  (route) => route.isFirst,
+                  arguments: 1,
+                );
+              },
+            ),
           ],
         ),
       ),
