@@ -27,7 +27,7 @@ void main() {
   group('AuthRepository', () {
     test('login 200 guarda token y retorna AuthResponse', () async {
       final client = MockClient((request) async {
-        if (request.url.path == '/auth/login') {
+        if (request.url.path == '/api/v1/usuarios/login') {
           return http.Response(
             jsonEncode({'token': _fakeToken()}),
             200,
@@ -57,7 +57,7 @@ void main() {
 
     test('login 200 funciona aunque perfil falle', () async {
       final client = MockClient((request) async {
-        if (request.url.path == '/auth/login') {
+        if (request.url.path == '/api/v1/usuarios/login') {
           return http.Response(
             jsonEncode({'token': _fakeToken()}),
             200,

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../core/auth/biometric_service.dart';
 import '../core/errors/api_exception.dart';
 import '../core/validators/form_validators.dart';
 import '../data/repositories/auth_repository.dart';
+import '../domain/session/session_manager.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
 import '../widgets/auth_layout.dart';
@@ -26,13 +28,64 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authRepository = AuthRepository();
+  final _biometricService = LocalAuthBiometricService();
   bool _isLoading = false;
+  bool _showBiometricButton = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricAvailability();
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    final enabled = await SessionManager.getBiometricEnabled();
+    if (enabled != true) return;
+    final available = await _biometricService.isAvailable();
+    if (!mounted) return;
+    setState(() => _showBiometricButton = available);
+  }
+
+  Future<void> _loginWithBiometrics() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await _biometricService.authenticate();
+
+      if (!mounted) return;
+
+      if (result == BiometricResult.success) {
+        final hasSession = await SessionManager.hasSession();
+        if (!mounted) return;
+        if (hasSession) {
+          Navigator.pushReplacementNamed(context, MainScreen.routeName);
+        } else {
+          _showMessage(
+            'Tu sesión expiró. Iniciá sesión con tu correo y contraseña.',
+          );
+        }
+        return;
+      }
+
+      if (result == BiometricResult.lockedOut) {
+        _showMessage(
+          'Demasiados intentos fallidos. Usá tu correo y contraseña.',
+        );
+        return;
+      }
+
+      if (result == BiometricResult.failed) {
+        _showMessage('No se pudo verificar tu identidad. Intentá de nuevo.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -45,6 +98,8 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       if (!mounted) return;
+      await _offerBiometricIfNeeded();
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, MainScreen.routeName);
     } on ApiException catch (error) {
       _showMessage(error.userMessage);
@@ -53,6 +108,38 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Tras un login exitoso, ofrece activar biometría si nunca se preguntó.
+  Future<void> _offerBiometricIfNeeded() async {
+    final alreadyDecided = await SessionManager.getBiometricEnabled();
+    if (alreadyDecided != null) return;
+
+    final available = await _biometricService.isAvailable();
+    if (!available || !mounted) return;
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Acceso rápido'),
+        content: const Text(
+          '¿Querés usar tu huella digital o Face ID para ingresar más rápido la próxima vez?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Ahora no'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Activar'),
+          ),
+        ],
+      ),
+    );
+
+    await SessionManager.setBiometricEnabled(accepted ?? false);
   }
 
   void _showMessage(String message) {
@@ -124,6 +211,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'INGRESAR',
                 onPressed: _submit,
               ),
+            if (_showBiometricButton && !_isLoading) ...[
+              const SizedBox(height: 12),
+              _BiometricButton(onTap: _loginWithBiometrics),
+            ],
             const SizedBox(height: 32),
             const WavyAccent(),
             const SizedBox(height: 32),
@@ -144,6 +235,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   : () => Navigator.pushReplacementNamed(context, '/register'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BiometricButton extends StatelessWidget {
+  const _BiometricButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.fingerprint, size: 22),
+      label: const Text('Usar huella / Face ID'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: FoodlyColors.celeste,
+        side: const BorderSide(color: FoodlyColors.celeste),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        textStyle: GoogleFonts.nunito(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

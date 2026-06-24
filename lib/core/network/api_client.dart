@@ -38,6 +38,17 @@ class ApiClient {
     }, requiresAuth: requiresAuth);
   }
 
+  Future<http.Response> delete(
+    String endpoint, {
+    bool requiresAuth = true,
+  }) async {
+    return _execute(() async {
+      final headers = await _buildHeaders(requiresAuth: requiresAuth);
+      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+      return _client.delete(uri, headers: headers);
+    }, requiresAuth: requiresAuth);
+  }
+
   Future<http.Response> postMultipart({
     required String endpoint,
     required Map<String, String> fields,

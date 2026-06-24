@@ -5,8 +5,11 @@ import '../core/errors/api_exception.dart';
 import '../data/models/cliente_profile_model.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/cliente_profile_repository.dart';
+import '../data/repositories/cliente_repository.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/skeleton_loader.dart';
 import 'home_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -19,6 +22,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _profileRepository = ClienteProfileRepository();
   final _authRepository = AuthRepository();
+  final _clienteRepository = ClienteRepository();
   late Future<ClienteProfileModel> _profileFuture;
 
   @override
@@ -57,6 +61,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _deleteAccount(ClienteProfileModel profile) async {
+    // Paso 1: advertencia
+    final step1 = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar cuenta'),
+        content: const Text(
+          'Esta acción es permanente e irreversible. '
+          'Todos tus datos, historial de pedidos y calificaciones serán eliminados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFD32F2F),
+            ),
+            child: const Text('Continuar'),
+          ),
+        ],
+      ),
+    );
+
+    if (step1 != true || !mounted) return;
+
+    // Paso 2: confirmar con email
+    final emailController = TextEditingController();
+    final step2 = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar eliminación'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Escribí tu correo electrónico para confirmar:',
+              style: GoogleFonts.nunito(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                hintText: 'tu@email.com',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (emailController.text.trim().toLowerCase() !=
+                  profile.email.toLowerCase()) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('El correo no coincide con tu cuenta.'),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(context, true);
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFD32F2F),
+            ),
+            child: const Text('Eliminar mi cuenta'),
+          ),
+        ],
+      ),
+    );
+
+    if (step2 != true || !mounted) return;
+
+    try {
+      await _clienteRepository.eliminarCuenta();
+      if (!mounted) return;
+      await _authRepository.logout();
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        HomeScreen.routeName,
+        (_) => false,
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.userMessage)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -74,39 +177,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: ProfileHeaderSkeleton(),
+            );
           }
 
           if (snapshot.hasError) {
             final message = snapshot.error is ApiException
                 ? (snapshot.error as ApiException).userMessage
                 : 'No pudimos cargar tu perfil.';
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.nunito(
-                        fontSize: 15,
-                        color: FoodlyColors.grisIntermedio,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _profileFuture = _profileRepository.getOrFetch();
-                        });
-                      },
-                      child: const Text('Reintentar'),
-                    ),
-                  ],
-                ),
-              ),
+            return ErrorState(
+              message: message,
+              onRetry: () => setState(() {
+                _profileFuture = _profileRepository.getOrFetch();
+              }),
             );
           }
 
@@ -147,6 +232,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 onTap: _logout,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 4),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_forever_outlined,
+                  color: Color(0xFFD32F2F),
+                ),
+                title: Text(
+                  'Eliminar cuenta',
+                  style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFD32F2F),
+                  ),
+                ),
+                subtitle: Text(
+                  'Acción irreversible',
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    color: FoodlyColors.grisIntermedio,
+                  ),
+                ),
+                onTap: () => _deleteAccount(profile),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

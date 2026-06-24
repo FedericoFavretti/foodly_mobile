@@ -176,7 +176,7 @@ class PedidoRepository {
     try {
       final decoded = jsonDecode(body);
       if (decoded is Map<String, dynamic>) {
-        final message = decoded['message'] ?? decoded['error'];
+        final message = decoded['mensaje'] ?? decoded['message'] ?? decoded['error'];
         if (message is String && message.isNotEmpty) return message;
       }
     } catch (_) {}

@@ -49,11 +49,21 @@ class AuthRepository {
           );
         }
         await SessionManager.saveToken(authResponse.token);
-        try {
-          await _profileRepository.fetchAndCache();
-        } catch (_) {
-          // El login es válido aunque el perfil falle; checkout reintenta.
+        
+        // Guardar info del usuario si viene en la respuesta (Fase 7+)
+        if (authResponse.usuario != null) {
+          await SessionManager.saveUsuarioInfoJson(
+            jsonEncode(authResponse.usuario!.toJson()),
+          );
+        } else {
+          // Fallback: intentar obtener perfil del endpoint (bloqueado en backend)
+          try {
+            await _profileRepository.fetchAndCache();
+          } catch (_) {
+            // El login es válido aunque el perfil falle; checkout reintenta.
+          }
         }
+        
         return authResponse;
       }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'core/navigation/foodly_page_route.dart';
 import 'theme/foodly_colors.dart';
 import 'theme/foodly_theme.dart';
 import 'screens/home_screen.dart';
@@ -63,51 +64,48 @@ class FoodlyApp extends StatelessWidget {
         ),
       ),
       initialRoute: HomeScreen.routeName,
-      routes: {
-        HomeScreen.routeName: (_) => const HomeScreen(),
-        LoginScreen.routeName: (_) => const LoginScreen(),
-        MainScreen.routeName: (_) => const AuthGate(child: AppShell()),
-        LocalDetailScreen.routeName: (_) => const AuthGate(
-              child: _LocalDetailRoute(),
-            ),
-        CartScreen.routeName: (_) => const AuthGate(child: CartScreen()),
-        CheckoutScreen.routeName: (_) => const AuthGate(child: CheckoutScreen()),
-        OrderStatusScreen.routeName: (_) => const AuthGate(
-              child: _OrderStatusRoute(),
-            ),
-        RegisterScreen.routeName: (_) => const RegisterScreen(),
-      },
+      onGenerateRoute: _generateRoute,
     );
   }
-}
 
-class _LocalDetailRoute extends StatelessWidget {
-  const _LocalDetailRoute();
+  static Route<dynamic>? _generateRoute(RouteSettings settings) {
+    Widget page;
 
-  @override
-  Widget build(BuildContext context) {
-    final localId = ModalRoute.of(context)?.settings.arguments;
-    if (localId is! int) {
-      return const Scaffold(
-        body: Center(child: Text('Local no especificado.')),
-      );
+    switch (settings.name) {
+      case HomeScreen.routeName:
+        page = const HomeScreen();
+      case LoginScreen.routeName:
+        page = const LoginScreen();
+      case RegisterScreen.routeName:
+        page = const RegisterScreen();
+      case MainScreen.routeName:
+        page = const AuthGate(child: AppShell());
+      case CartScreen.routeName:
+        page = const AuthGate(child: CartScreen());
+      case CheckoutScreen.routeName:
+        page = const AuthGate(child: CheckoutScreen());
+      case LocalDetailScreen.routeName:
+        final localId = settings.arguments;
+        if (localId is! int) {
+          page = const Scaffold(
+            body: Center(child: Text('Local no especificado.')),
+          );
+        } else {
+          page = AuthGate(child: LocalDetailScreen(localId: localId));
+        }
+      case OrderStatusScreen.routeName:
+        final pedido = settings.arguments;
+        if (pedido is! PedidoResponseModel) {
+          page = const Scaffold(
+            body: Center(child: Text('Pedido no disponible.')),
+          );
+        } else {
+          page = AuthGate(child: OrderStatusScreen(pedido: pedido));
+        }
+      default:
+        return null;
     }
-    return LocalDetailScreen(localId: localId);
+
+    return FoodlyPageRoute(page: page, settings: settings);
   }
 }
-
-class _OrderStatusRoute extends StatelessWidget {
-  const _OrderStatusRoute();
-
-  @override
-  Widget build(BuildContext context) {
-    final pedido = ModalRoute.of(context)?.settings.arguments;
-    if (pedido is! PedidoResponseModel) {
-      return const Scaffold(
-        body: Center(child: Text('Pedido no disponible.')),
-      );
-    }
-    return OrderStatusScreen(pedido: pedido);
-  }
-}
-

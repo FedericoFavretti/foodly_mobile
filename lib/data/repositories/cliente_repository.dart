@@ -97,12 +97,52 @@ class ClienteRepository {
     }
   }
 
+  /// Elimina la cuenta del cliente autenticado.
+  /// Endpoint: `DELETE /api/v1/clientes/perfil`
+  /// [PENDIENTE backend]: el endpoint no existe aún — lanza ApiException mock.
+  Future<void> eliminarCuenta() async {
+    try {
+      final response = await _api.delete(
+        ApiConstants.eliminarCuentaEndpoint,
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) return;
+
+      // El endpoint aún no existe en backend — 404 esperado en este sprint.
+      if (response.statusCode == 404 || response.statusCode == 405) {
+        throw const ApiException(
+          statusCode: 503,
+          userMessage:
+              'La eliminación de cuenta aún no está disponible. '
+              'Contactá a soporte para proceder.',
+        );
+      }
+
+      throw ApiException(
+        statusCode: response.statusCode,
+        userMessage: 'No se pudo eliminar la cuenta. Intentalo más tarde.',
+        debugInfo: response.body,
+      );
+    } on ApiException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (error) {
+      throw ApiException(
+        statusCode: 0,
+        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
+        debugInfo: error.toString(),
+      );
+    }
+  }
+
   String? _extractErrorMessage(String body) {
     if (body.isEmpty) return null;
     try {
       final decoded = jsonDecode(body);
       if (decoded is Map<String, dynamic>) {
-        final message = decoded['message'] ?? decoded['error'];
+        final message = decoded['mensaje'] ?? decoded['message'] ?? decoded['error'];
         if (message is String && message.isNotEmpty) return message;
       }
     } catch (_) {}

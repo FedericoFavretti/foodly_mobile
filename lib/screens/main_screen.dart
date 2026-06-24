@@ -8,7 +8,9 @@ import '../data/models/local_model.dart';
 import '../data/repositories/catalog_repository.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/local_card.dart';
+import '../widgets/skeleton_loader.dart';
 import 'local_detail_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -134,9 +136,8 @@ class _MainScreenState extends State<MainScreen> {
             future: _localesFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(child: CircularProgressIndicator()),
+                return const SliverToBoxAdapter(
+                  child: LocalListSkeleton(count: 4),
                 );
               }
 
@@ -148,7 +149,7 @@ class _MainScreenState extends State<MainScreen> {
                         : 'Ocurrió un error al cargar los locales.';
                 return SliverFillRemaining(
                   hasScrollBody: false,
-                  child: _ErrorState(
+                  child: ErrorState(
                     message: message,
                     onRetry: _reloadLocales,
                   ),
@@ -163,11 +164,20 @@ class _MainScreenState extends State<MainScreen> {
               );
 
               if (locales.isEmpty) {
-                return const SliverFillRemaining(
+                return SliverFillRemaining(
                   hasScrollBody: false,
-                  child: _EmptyState(
-                    message:
-                        'No se encontraron locales que coincidan con su búsqueda. Intente con otros criterios.',
+                  child: EmptyState(
+                    icon: Icons.storefront_outlined,
+                    title: 'Sin resultados',
+                    subtitle:
+                        'No se encontraron locales con esos criterios.',
+                    actionLabel: 'Limpiar filtros',
+                    onAction: () {
+                      setState(() {
+                        _searchController.clear();
+                        _soloAbiertos = false;
+                      });
+                    },
                   ),
                 );
               }
@@ -227,56 +237,3 @@ class _DemoChip extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.nunito(
-            fontSize: 15,
-            color: FoodlyColors.grisIntermedio,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(
-                fontSize: 15,
-                color: FoodlyColors.grisIntermedio,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextButton(onPressed: onRetry, child: const Text('Reintentar')),
-          ],
-        ),
-      ),
-    );
-  }
-}

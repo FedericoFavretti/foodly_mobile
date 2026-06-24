@@ -6,6 +6,8 @@ import '../data/models/pedido_response_model.dart';
 import '../data/repositories/pedido_repository.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/skeleton_loader.dart';
 
 class HistorialScreen extends StatefulWidget {
   const HistorialScreen({super.key});
@@ -265,7 +267,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
               future: _historialFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const PedidoListSkeleton();
                 }
 
                 if (snapshot.hasError) {
@@ -274,27 +276,28 @@ class _HistorialScreenState extends State<HistorialScreen> {
                       : snapshot.error is NetworkException
                           ? (snapshot.error as NetworkException).userMessage
                           : 'Ocurrió un error al cargar el historial.';
-                  return _CenterMessage(
-                    message: message,
-                    onRetry: _reload,
-                  );
+                  return ErrorState(message: message, onRetry: _reload);
                 }
 
                 final all = snapshot.data ?? [];
 
                 if (all.isEmpty) {
-                  return const _CenterMessage(
-                    message:
-                        'Aún no ha realizado ningún pedido. ¡Explore los locales disponibles y realice su primer pedido!',
+                  return const EmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Sin pedidos aún',
+                    subtitle:
+                        '¡Explorá los locales disponibles y realizá tu primer pedido!',
                   );
                 }
 
                 final filtered = _applyFilter(all);
 
                 if (filtered.isEmpty) {
-                  return const _CenterMessage(
-                    message:
-                        'No se encontraron pedidos que coincidan con los criterios seleccionados.',
+                  return const EmptyState(
+                    icon: Icons.filter_list_off,
+                    title: 'Sin resultados',
+                    subtitle:
+                        'No hay pedidos con el estado seleccionado.',
                   );
                 }
 
@@ -471,35 +474,3 @@ class _PedidoCard extends StatelessWidget {
   }
 }
 
-class _CenterMessage extends StatelessWidget {
-  const _CenterMessage({required this.message, this.onRetry});
-
-  final String message;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(
-                fontSize: 15,
-                color: FoodlyColors.grisIntermedio,
-              ),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 16),
-              TextButton(onPressed: onRetry, child: const Text('Reintentar')),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
