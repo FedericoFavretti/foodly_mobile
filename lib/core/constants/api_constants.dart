@@ -28,12 +28,12 @@ abstract final class ApiConstants {
   static const eliminarCuentaEndpoint = '/api/v1/clientes/perfil';
 
   /// Flag para usar datos mock o API real del catálogo.
-  /// Backend GET /api/v1/clientes ahora está funcional (a partir de jun-2026).
-  /// Para pruebas con backend real: flutter run --dart-define=USE_MOCK_CATALOG=false
-  /// Para desarrollo con mocks (sin backend): flutter run (default true)
+  /// Backend GET /api/v1/clientes está funcional (desde jun-2026).
+  /// DEFAULT: usa catálogo real del backend (false)
+  /// Para desarrollo con mocks locales: flutter run --dart-define=USE_MOCK_CATALOG=true
   static const useMockCatalog = bool.fromEnvironment(
     'USE_MOCK_CATALOG',
-    defaultValue: true,
+    defaultValue: false,
   );
 
   static const timeoutSeconds = 15;

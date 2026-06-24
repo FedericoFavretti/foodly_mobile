@@ -94,5 +94,21 @@ class AuthRepository {
     }
   }
 
-  Future<void> logout() => SessionManager.clearSession();
+  /// Cierra la sesión del usuario.
+  /// Intenta notificar al backend, pero siempre limpia la sesión local.
+  Future<void> logout() async {
+    try {
+      // Intentar notificar al backend (best effort)
+      await _api.post(
+        ApiConstants.logoutEndpoint,
+        {},
+        requiresAuth: true,
+      );
+    } catch (_) {
+      // Ignorar errores del backend - la limpieza local es lo crítico
+    } finally {
+      // Siempre limpiar la sesión local
+      await SessionManager.clearSession();
+    }
+  }
 }

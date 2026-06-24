@@ -109,5 +109,74 @@ void main() {
       expect(locales.length, 1);
       expect(locales.first.nombre, 'API Local');
     });
+
+    test('API error 500 lanza ApiException', () async {
+      final client = MockClient((request) async {
+        return http.Response('Internal Server Error', 500);
+      });
+
+      final repository = CatalogRepository(
+        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+      );
+
+      // Debe lanzar ApiException para que la UI muestre error
+      expect(
+        () => repository.listarLocales(),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('API con catálogo real habilitado por defecto', () async {
+      // Verificar que useMockCatalog es false por defecto (Fase 8)
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/v1/clientes');
+        return http.Response(jsonEncode([]), 200);
+      });
+
+      final repository = CatalogRepository(
+        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+      );
+
+      await repository.listarLocales();
+
+      expect(repository.usesMockData, isFalse);
+    });
+
+    test('API parsea múltiples locales con imágenes', () async {
+      final body = jsonEncode([
+        {
+          'id': 1,
+          'nombre': 'Local 1',
+          'descripcion': 'Desc 1',
+          'calificacionGlobal': 4.5,
+          'estaAbierto': true,
+          'imagenes': ['img1.jpg', 'img2.jpg'],
+        },
+        {
+          'id': 2,
+          'nombre': 'Local 2',
+          'descripcion': 'Desc 2',
+          'calificacionGlobal': 4.8,
+          'estaAbierto': false,
+          'imagenes': ['img3.jpg'],
+        },
+      ]);
+
+      final client = MockClient((request) async {
+        return http.Response(body, 200);
+      });
+
+      final repository = CatalogRepository(
+        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+      );
+
+      final locales = await repository.listarLocales();
+
+      expect(locales.length, 2);
+      expect(locales[0].imagenPrincipal, 'img1.jpg');
+      expect(locales[1].imagenPrincipal, 'img3.jpg');
+      expect(locales[0].estaAbierto, isTrue);
+      expect(locales[1].estaAbierto, isFalse);
+    });
   });
 }
