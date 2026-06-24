@@ -18,8 +18,8 @@ class RegistroClienteData {
     required this.numero,
     required this.ciudad,
     required this.codigoPostal,
-    required this.fotoBytes,
-    required this.fotoFilename,
+    this.fotoBytes,
+    this.fotoFilename,
   });
 
   final String email;
@@ -31,8 +31,8 @@ class RegistroClienteData {
   final String numero;
   final String ciudad;
   final String codigoPostal;
-  final List<int> fotoBytes;
-  final String fotoFilename;
+  final List<int>? fotoBytes;
+  final String? fotoFilename;
 }
 
 class ClienteRepository {
@@ -56,21 +56,28 @@ class ClienteRepository {
         },
       });
 
+      // Construir files map - foto es opcional
+      final files = <String, http.MultipartFile>{
+        'datos': http.MultipartFile.fromString(
+          'datos',
+          datosJson,
+          contentType: MediaType('application', 'json'),
+        ),
+      };
+
+      // Agregar foto solo si fue seleccionada
+      if (data.fotoBytes != null) {
+        files['foto'] = http.MultipartFile.fromBytes(
+          'foto',
+          data.fotoBytes!,
+          filename: data.fotoFilename ?? 'foto.jpg',
+        );
+      }
+
       final response = await _api.postMultipart(
         endpoint: ApiConstants.registroEndpoint,
         fields: const {},
-        files: {
-          'datos': http.MultipartFile.fromString(
-            'datos',
-            datosJson,
-            contentType: MediaType('application', 'json'),
-          ),
-          'foto': http.MultipartFile.fromBytes(
-            'foto',
-            data.fotoBytes,
-            filename: data.fotoFilename,
-          ),
-        },
+        files: files,
         requiresAuth: false,
       );
 

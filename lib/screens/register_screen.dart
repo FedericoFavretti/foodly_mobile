@@ -79,10 +79,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    if (_fotoBytes == null) {
-      _showMessage('Seleccioná una foto de perfil para continuar.');
-      return;
-    }
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -98,8 +94,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           numero: _numeroController.text,
           ciudad: _ciudadController.text,
           codigoPostal: _codigoPostalController.text,
-          fotoBytes: _fotoBytes!,
-          fotoFilename: _fotoFilename ?? 'foto.jpg',
+          fotoBytes: _fotoBytes,
+          fotoFilename: _fotoFilename,
         ),
       );
       if (!mounted) return;
@@ -269,7 +265,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 onPressed: _isLoading ? null : _pickPhoto,
                 icon: const Icon(Icons.photo_outlined),
                 label: Text(
-                  _fotoFilename ?? 'Seleccionar foto de perfil',
+                  _fotoFilename ?? 'Foto de perfil (opcional)',
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
