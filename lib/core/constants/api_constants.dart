@@ -8,10 +8,12 @@ abstract final class ApiConstants {
   static const loginEndpoint = '/api/v1/usuarios/login';
   static const registroEndpoint = '/api/v1/clientes/registro';
   static const localesEndpoint = '/api/v1/clientes';
-  static const perfilClienteEndpoint = '/api/v1/clientes/perfil';
+  static const perfilClienteEndpoint = '/api/v1/usuarios/perfil';
   static const pedidosEndpoint = '/api/v1/pedidos';
   static const reclamoEndpoint = '/api/v1/reclamos/realizar_reclamo';
   static const calificacionEndpoint = '/api/v1/calificaciones/calificar';
+  static const logoutEndpoint = '/api/v1/usuarios/logout';
+  static const cancelarPedidoEndpoint = '/api/v1/pedidos/{idPedido}/cancelar';
 
   // TODO(BLOQUEADO): Estos endpoints requieren clienteId del usuario autenticado.
   // Backend debe proveer GET /api/v1/clientes/perfil o GET /api/v1/usuarios/me

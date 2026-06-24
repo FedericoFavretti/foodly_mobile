@@ -37,8 +37,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _documentoController = TextEditingController();
   final _calleController = TextEditingController();
   final _numeroController = TextEditingController();
-  final _ciudadController = TextEditingController(text: 'Montevideo');
-  final _codigoPostalController = TextEditingController(text: '11000');
+  final _ciudadController = TextEditingController();
+  final _codigoPostalController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -144,8 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         '/',
         (_) => false,
       ),
-      child: SingleChildScrollView(
-        child: Form(
+      child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -235,6 +234,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 12),
               TextFormField(
+                controller: _codigoPostalController,
+                keyboardType: TextInputType.number,
+                enabled: !_isLoading,
+                decoration: const InputDecoration(hintText: 'Código postal (opcional)'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 enabled: !_isLoading,
@@ -310,7 +316,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 }

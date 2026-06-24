@@ -33,7 +33,7 @@ void main() {
             200,
           );
         }
-        if (request.url.path == '/api/v1/clientes/perfil') {
+        if (request.url.path == '/api/v1/usuarios/perfil') {
           return http.Response(_fakeProfileJson, 200);
         }
         fail('Request inesperado: ${request.url}');
