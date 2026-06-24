@@ -29,7 +29,12 @@ void main() {
       final client = MockClient((request) async {
         if (request.url.path == '/api/v1/usuarios/login') {
           return http.Response(
-            jsonEncode({'token': _fakeToken()}),
+            jsonEncode({
+              'token': _fakeToken(),
+              'id': 123,
+              'email': 'cliente@foodly.com',
+              'tipo': 'CLIENTE',
+            }),
             200,
           );
         }
@@ -51,7 +56,8 @@ void main() {
 
       expect(response.token, isNotEmpty);
       expect(await SessionManager.getToken(), isNotEmpty);
-      expect(await SessionManager.getProfileJson(), isNotNull);
+      // Con la nueva estructura flat, se guarda la info del usuario directamente
+      expect(await SessionManager.getUsuarioInfoJson(), isNotNull);
       await SessionManager.clearSession();
     });
 
@@ -59,7 +65,12 @@ void main() {
       final client = MockClient((request) async {
         if (request.url.path == '/api/v1/usuarios/login') {
           return http.Response(
-            jsonEncode({'token': _fakeToken()}),
+            jsonEncode({
+              'token': _fakeToken(),
+              'id': 123,
+              'email': 'cliente@foodly.com',
+              'tipo': 'CLIENTE',
+            }),
             200,
           );
         }
@@ -103,6 +114,38 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('login 200 con estructura flat del backend incluye usuario', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/api/v1/usuarios/login') {
+          return http.Response(
+            jsonEncode({
+              'token': _fakeToken(),
+              'id': 456,
+              'email': 'test@foodly.com',
+              'tipo': 'CLIENTE',
+            }),
+            200,
+          );
+        }
+        fail('Request inesperado: ${request.url}');
+      });
+
+      final repository = AuthRepository(api: ApiClient(client: client));
+
+      final response = await repository.login(
+        email: 'test@foodly.com',
+        password: 'Clave123',
+      );
+
+      expect(response.token, isNotEmpty);
+      expect(response.usuario, isNotNull);
+      expect(response.usuario!.id, 456);
+      expect(response.usuario!.email, 'test@foodly.com');
+      expect(response.usuario!.tipo, 'CLIENTE');
+      
+      await SessionManager.clearSession();
     });
   });
 }

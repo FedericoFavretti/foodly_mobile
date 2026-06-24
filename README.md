@@ -153,12 +153,13 @@ La UI **nunca** llama directamente a `http`. Siempre pasa por el repositorio cor
 |------|-------------|--------|
 | 1 | Auth: login + registro JWT | ✅ Completa |
 | 2 | Catálogo: locales + platos | ✅ Completa (con mock para desarrollo) |
-| 3 | Pedidos: carrito → checkout → confirmación | ⏸️ Bloqueado (requiere clienteId) |
-| 4 | Historial + cancelación | ⏸️ Bloqueado (requiere clienteId) |
-| 5 | Navegación tabs + perfil + reclamo + calificación | ⏸️ Bloqueado (requiere clienteId) |
+| 3 | Pedidos: carrito → checkout → confirmación | 🟢 Listo para implementar |
+| 4 | Historial + cancelación | 🟢 Listo para implementar |
+| 5 | Navegación tabs + perfil + reclamo + calificación | 🟢 Listo para implementar |
 | 6 | Biometría + eliminar cuenta + UX polish | ✅ Completa |
 | 7 | Integración backend real (endpoints actualizados) | ✅ Completa |
 | 8 | Logout funcional + catálogo real por defecto | ✅ Completa |
+| 9 | **PRÓXIMA**: Implementar funcionalidades completas | 🎯 En progreso |
 
 ---
 
@@ -179,19 +180,18 @@ La UI **nunca** llama directamente a `http`. Siempre pasa por el repositorio cor
 
 | Método | Endpoint | Estado backend | Estado mobile | Notas |
 |--------|----------|----------------|---------------|-------|
-| POST | `/api/v1/usuarios/login` | ✅ Funcional | ✅ Integrado (F7) | Antes `/auth/login` |
+| POST | `/api/v1/usuarios/login` | ✅ Funcional | ✅ Integrado (F7) | ✅ Ahora incluye `id`, `email`, `tipo` |
 | POST | `/api/v1/usuarios/logout` | ✅ Funcional | ✅ Integrado (F8) | Cierre de sesión |
 | POST | `/api/v1/clientes/registro` | ✅ Funcional | ✅ Integrado (F1) | Multipart con foto |
 | GET | `/api/v1/clientes` | ✅ Funcional | ✅ Integrado (F8) | Catálogo real por defecto |
 | GET | `/api/v1/clientes/{filtro}` | ✅ Funcional | ✅ Integrado (F2) | Buscar platos |
 | GET | `/api/v1/usuarios/perfil` | ✅ Funcional | ✅ Integrado (F7) | Antes `/api/v1/clientes/perfil` |
-| GET | `/api/v1/usuarios/perfil.usuario.id` | ❌ No disponible | ⏸️ Bloqueado | **CRÍTICO:** Backend debe incluir `usuario.id` en login |
-| POST | `/api/v1/pedidos` | ✅ Funcional | ⏸️ Bloqueado | Requiere `clienteId` del login |
-| GET | `/api/v1/pedidos/clientes/{idCliente}` | ✅ Funcional | ⏸️ Bloqueado | Requiere `clienteId` del login |
-| POST | `/api/v1/pedidos/{id}/cancelar` | ✅ Funcional | ⏸️ Bloqueado | Backend listo, mobile requiere `clienteId` |
-| POST | `/api/v1/reclamos/realizar_reclamo` | ✅ Funcional | ⏸️ Bloqueado | Requiere `clienteId` del login |
-| PUT | `/api/v1/calificaciones/calificar` | ✅ Funcional | ⏸️ Bloqueado | Requiere `clienteId` del login |
-| DELETE | `/api/v1/usuarios/clientes/{id}/cuenta-dev` | ✅ Funcional | ⏸️ Bloqueado | Requiere `clienteId` del login |
+| POST | `/api/v1/pedidos` | ✅ Funcional | 🟢 Listo | `clienteId` disponible desde login |
+| GET | `/api/v1/pedidos/clientes/{idCliente}` | ✅ Funcional | 🟢 Listo | `clienteId` disponible desde login |
+| POST | `/api/v1/pedidos/{id}/cancelar` | ✅ Funcional | 🟢 Listo | `clienteId` disponible desde login |
+| POST | `/api/v1/reclamos/realizar_reclamo` | ✅ Funcional | 🟢 Listo | `clienteId` disponible desde login |
+| PUT | `/api/v1/calificaciones/calificar` | ✅ Funcional | 🟢 Listo | `clienteId` disponible desde login |
+| DELETE | `/api/v1/usuarios/clientes/{id}/cuenta-dev` | ✅ Funcional | 🟢 Listo | `clienteId` disponible desde login |
 
 ---
 
@@ -206,48 +206,30 @@ La UI **nunca** llama directamente a `http`. Siempre pasa por el repositorio cor
 
 ## Notas para el equipo backend
 
-### 🚨 Bloqueador crítico: falta `clienteId` en login
+### ✅ Bloqueador crítico RESUELTO (24-jun-2026)
 
-**Todas las integraciones de features están bloqueadas porque mobile no puede obtener el `id` del cliente.**
-
-Mobile necesita el `clienteId` para:
-- Crear pedidos (`idCliente` en body)
-- Ver historial (`/pedidos/clientes/{idCliente}`)
-- Cancelar pedidos (validar pertenencia)
-- Crear reclamos (`idCliente` en body)
-- Calificar locales (`idCliente` en body)
-- Eliminar cuenta (`/usuarios/clientes/{idCliente}/cuenta-dev`)
-
-### Solución propuesta (RECOMENDADA)
-
-**Incluir objeto `usuario` en la respuesta de login:**
+**El backend ahora incluye el `clienteId` en el login:**
 
 ```json
 POST /api/v1/usuarios/login
-Request:
-{
-  "email": "cliente@foodly.com",
-  "password": "Clave123"
-}
-
 Response 200:
 {
+  "id": 123,
   "token": "eyJhbGciOiJIUzI1NiIs...",
-  "usuario": {
-    "id": 123,
-    "email": "cliente@foodly.com",
-    "tipo": "CLIENTE"
-  }
+  "email": "cliente@foodly.com",
+  "tipo": "CLIENTE"
 }
 ```
 
-**Mobile ya está 100% preparado** para esta solución:
-- ✅ `UsuarioInfoModel` creado
-- ✅ `AuthResponse` actualizado para parsear `usuario`
-- ✅ `SessionManager.getClienteId()` implementado
-- ✅ Solo falta que backend envíe los datos
+**Mobile adaptado exitosamente:**
+- ✅ `AuthResponse` actualizado para parsear estructura flat del backend
+- ✅ Getter `usuario` convierte a `UsuarioInfoModel` para compatibilidad interna
+- ✅ `SessionManager.getClienteId()` funcional
+- ✅ Todos los 54 tests pasan correctamente
 
-**Documentación completa:** `documentacion/desarrollo-aqui/Solucion bloqueador clienteId.md`
+**Resultado:** Todas las funcionalidades (pedidos, historial, reclamos, calificaciones, eliminar cuenta) ahora están desbloqueadas y listas para implementar.
+
+**Análisis completo:** `documentacion/desarrollo-aqui/Analisis cambios backend 24-jun-2026 (2).md`
 
 ### Cambios recientes implementados
 
@@ -258,6 +240,14 @@ Response 200:
 ✅ `GET /api/v1/clientes` (catálogo) integrado  
 
 **Fase 8 (Features independientes):**
+✅ Logout funcional (notifica al backend + limpia sesión local)  
+✅ Catálogo real por defecto (`useMockCatalog = false`)  
+✅ Tests actualizados (54 tests totales, todos pasando)  
+
+**Fase 9 (Desbloqueada - 24-jun-2026):**
+🎯 Backend incluyó `clienteId` en login response  
+🎯 Mobile adaptado a nueva estructura flat del backend  
+🎯 Listo para implementar: pedidos, historial, reclamos, calificaciones
 ✅ Logout funcional (`POST /api/v1/usuarios/logout`)  
 ✅ Catálogo real habilitado por defecto  
 ✅ 6 nuevos tests (logout + catálogo)  
