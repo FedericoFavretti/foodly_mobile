@@ -1,53 +1,24 @@
 import 'dart:convert';
 
-import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
-import '../../core/network/api_client.dart';
 import '../../domain/session/session_manager.dart';
 import '../models/cliente_profile_model.dart';
+import '../models/usuario_info_model.dart';
 
 class ClienteProfileRepository {
-  ClienteProfileRepository({ApiClient? api}) : _api = api ?? ApiClient();
-
-  final ApiClient _api;
-
   Future<ClienteProfileModel> fetchAndCache() async {
-    final profile = await fetch();
+    final profile = await _fromSession();
+    if (profile == null) {
+      throw const ApiException(
+        statusCode: 401,
+        userMessage: 'No pudimos cargar tu perfil. Volvé a iniciar sesión.',
+      );
+    }
     await SessionManager.saveProfileJson(jsonEncode(profile.toJson()));
     return profile;
   }
 
-  Future<ClienteProfileModel> fetch() async {
-    try {
-      final response = await _api.get(
-        ApiConstants.perfilClienteEndpoint,
-        requiresAuth: true,
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return ClienteProfileModel.fromJson(data);
-      }
-
-      throw ApiException(
-        statusCode: response.statusCode,
-        userMessage: 'No pudimos cargar tu perfil. Intentalo más tarde.',
-        debugInfo: response.body,
-      );
-    } on ApiException {
-      rethrow;
-    } on SessionExpiredException {
-      rethrow;
-    } on NetworkException {
-      rethrow;
-    } catch (error) {
-      throw ApiException(
-        statusCode: 0,
-        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
-        debugInfo: error.toString(),
-      );
-    }
-  }
+  Future<ClienteProfileModel> fetch() => fetchAndCache();
 
   Future<ClienteProfileModel?> getCached() async {
     final json = await SessionManager.getProfileJson();
@@ -65,5 +36,23 @@ class ClienteProfileRepository {
     final cached = await getCached();
     if (cached != null) return cached;
     return fetchAndCache();
+  }
+
+  Future<ClienteProfileModel?> _fromSession() async {
+    final usuarioJson = await SessionManager.getUsuarioInfoJson();
+    if (usuarioJson == null) return null;
+    try {
+      final usuario = UsuarioInfoModel.fromJson(
+        jsonDecode(usuarioJson) as Map<String, dynamic>,
+      );
+      return ClienteProfileModel(
+        id: usuario.id,
+        email: usuario.email,
+        nombre: '',
+        apellido: '',
+      );
+    } catch (_) {
+      return null;
+    }
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foodly_mobile/core/errors/api_exception.dart';
 import 'package:foodly_mobile/core/network/api_client.dart';
@@ -9,13 +11,18 @@ import 'package:http/testing.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() => SessionManager.resetForTest());
+  setUp(() async {
+    SessionManager.resetForTest();
+    await SessionManager.saveToken('test.token');
+  });
 
   group('ClienteRepository.eliminarCuenta()', () {
     test('200 → no lanza excepción', () async {
-      final client = MockClient(
-        (_) async => http.Response('', 200),
-      );
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/v1/usuarios/mi-cuenta');
+        expect(request.method, 'DELETE');
+        return http.Response('', 200);
+      });
       final repo = ClienteRepository(
         api: ApiClient(client: client),
       );
@@ -32,8 +39,7 @@ void main() {
       await expectLater(repo.eliminarCuenta(), completes);
     });
 
-    test('404 → lanza ApiException con mensaje de endpoint no disponible',
-        () async {
+    test('404 → lanza ApiException', () async {
       final client = MockClient(
         (_) async => http.Response('Not Found', 404),
       );
@@ -46,29 +52,9 @@ void main() {
           isA<ApiException>().having(
             (e) => e.statusCode,
             'statusCode',
-            503,
+            404,
           ),
         ),
-      );
-    });
-
-    test('405 → lanza ApiException indicando pendiente de backend', () async {
-      final client = MockClient(
-        (_) async => http.Response('Method Not Allowed', 405),
-      );
-      final repo = ClienteRepository(
-        api: ApiClient(client: client),
-      );
-      Object? caught;
-      try {
-        await repo.eliminarCuenta();
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught, isA<ApiException>());
-      expect(
-        (caught as ApiException).userMessage,
-        contains('no está disponible'),
       );
     });
 
@@ -86,6 +72,26 @@ void main() {
             (e) => e.statusCode,
             'statusCode',
             500,
+          ),
+        ),
+      );
+    });
+
+    test('sin sesión → lanza ApiException 401', () async {
+      await SessionManager.clearSession();
+      final client = MockClient(
+        (_) async => http.Response('', 200),
+      );
+      final repo = ClienteRepository(
+        api: ApiClient(client: client),
+      );
+      await expectLater(
+        repo.eliminarCuenta(),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            401,
           ),
         ),
       );

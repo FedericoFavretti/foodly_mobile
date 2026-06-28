@@ -71,7 +71,8 @@ void main() {
 
     test('API null retorna lista vacía', () async {
       final client = MockClient((request) async {
-        expect(request.url.path, '/api/v1/clientes');
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/v1/clientes/listar_locales');
         return http.Response('null', 200);
       });
 
@@ -97,6 +98,8 @@ void main() {
       ]);
 
       final client = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/v1/clientes/listar_locales');
         return http.Response(body, 200);
       });
 
@@ -129,7 +132,8 @@ void main() {
     test('API con catálogo real habilitado por defecto', () async {
       // Verificar que useMockCatalog es false por defecto (Fase 8)
       final client = MockClient((request) async {
-        expect(request.url.path, '/api/v1/clientes');
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/v1/clientes/listar_locales');
         return http.Response(jsonEncode([]), 200);
       });
 
@@ -177,6 +181,38 @@ void main() {
       expect(locales[1].imagenPrincipal, 'img3.jpg');
       expect(locales[0].estaAbierto, isTrue);
       expect(locales[1].estaAbierto, isFalse);
+    });
+    test('API parsea platos de un local', () async {
+      final body = jsonEncode({
+        'platos': [
+          {
+            'id': 10,
+            'nombre': 'Milanesa',
+            'descripcion': 'Con papas',
+            'precio': 450.0,
+            'disponible': true,
+            'imagenes': [],
+            'dtLocal': {'id': 3},
+          },
+        ],
+        'promociones': [],
+      });
+
+      final client = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/v1/clientes/busqueda');
+        return http.Response(body, 200);
+      });
+
+      final repository = CatalogRepository(
+        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+      );
+
+      final platos = await repository.platosDeLocal(3);
+
+      expect(platos.length, 1);
+      expect(platos.first.nombre, 'Milanesa');
+      expect(platos.first.localId, 3);
     });
   });
 }

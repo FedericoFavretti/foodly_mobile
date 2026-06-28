@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foodly_mobile/core/errors/api_exception.dart';
 import 'package:foodly_mobile/core/network/api_client.dart';
 import 'package:foodly_mobile/data/repositories/auth_repository.dart';
-import 'package:foodly_mobile/data/repositories/cliente_profile_repository.dart';
 import 'package:foodly_mobile/domain/session/session_manager.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -16,39 +15,27 @@ String _fakeToken({String role = 'ROLE_USER'}) {
   return 'header.$payload.signature';
 }
 
-const _fakeProfileJson = '{"id":1,"email":"cliente@foodly.com",'
-    '"nombre":"Test","apellido":"User","direccion":null}';
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() => SessionManager.resetForTest());
 
   group('AuthRepository', () {
-    test('login 200 guarda token y retorna AuthResponse', () async {
+    test('login 200 guarda token, usuario y perfil mínimo', () async {
       final client = MockClient((request) async {
-        if (request.url.path == '/api/v1/usuarios/login') {
-          return http.Response(
-            jsonEncode({
-              'token': _fakeToken(),
-              'id': 123,
-              'email': 'cliente@foodly.com',
-              'tipo': 'CLIENTE',
-            }),
-            200,
-          );
-        }
-        if (request.url.path == '/api/v1/usuarios/perfil') {
-          return http.Response(_fakeProfileJson, 200);
-        }
-        fail('Request inesperado: ${request.url}');
+        expect(request.url.path, '/api/v1/usuarios/login');
+        return http.Response(
+          jsonEncode({
+            'token': _fakeToken(),
+            'id': 123,
+            'email': 'cliente@foodly.com',
+            'tipo': 'CLIENTE',
+          }),
+          200,
+        );
       });
 
-      final apiClient = ApiClient(client: client);
-      final repository = AuthRepository(
-        api: apiClient,
-        profileRepository: ClienteProfileRepository(api: apiClient),
-      );
+      final repository = AuthRepository(api: ApiClient(client: client));
       final response = await repository.login(
         email: 'cliente@foodly.com',
         password: 'Clave123',
@@ -56,42 +43,9 @@ void main() {
 
       expect(response.token, isNotEmpty);
       expect(await SessionManager.getToken(), isNotEmpty);
-      // Con la nueva estructura flat, se guarda la info del usuario directamente
       expect(await SessionManager.getUsuarioInfoJson(), isNotNull);
+      expect(await SessionManager.getProfileJson(), contains('"id":123'));
       await SessionManager.clearSession();
-    });
-
-    test('login 200 funciona aunque perfil falle', () async {
-      final client = MockClient((request) async {
-        if (request.url.path == '/api/v1/usuarios/login') {
-          return http.Response(
-            jsonEncode({
-              'token': _fakeToken(),
-              'id': 123,
-              'email': 'cliente@foodly.com',
-              'tipo': 'CLIENTE',
-            }),
-            200,
-          );
-        }
-        if (request.url.path == '/api/v1/clientes/perfil') {
-          return http.Response('', 500);
-        }
-        fail('Request inesperado: ${request.url}');
-      });
-
-      final apiClient = ApiClient(client: client);
-      final repository = AuthRepository(
-        api: apiClient,
-        profileRepository: ClienteProfileRepository(api: apiClient),
-      );
-      final response = await repository.login(
-        email: 'cliente@foodly.com',
-        password: 'Clave123',
-      );
-
-      expect(response.token, isNotEmpty);
-      expect(await SessionManager.getToken(), isNotEmpty);
     });
 
     test('login 401 lanza ApiException con mensaje de credenciales', () async {
@@ -118,18 +72,15 @@ void main() {
 
     test('login 200 con estructura flat del backend incluye usuario', () async {
       final client = MockClient((request) async {
-        if (request.url.path == '/api/v1/usuarios/login') {
-          return http.Response(
-            jsonEncode({
-              'token': _fakeToken(),
-              'id': 456,
-              'email': 'test@foodly.com',
-              'tipo': 'CLIENTE',
-            }),
-            200,
-          );
-        }
-        fail('Request inesperado: ${request.url}');
+        return http.Response(
+          jsonEncode({
+            'token': _fakeToken(),
+            'id': 456,
+            'email': 'test@foodly.com',
+            'tipo': 'CLIENTE',
+          }),
+          200,
+        );
       });
 
       final repository = AuthRepository(api: ApiClient(client: client));
@@ -144,7 +95,7 @@ void main() {
       expect(response.usuario!.id, 456);
       expect(response.usuario!.email, 'test@foodly.com');
       expect(response.usuario!.tipo, 'CLIENTE');
-      
+
       await SessionManager.clearSession();
     });
   });

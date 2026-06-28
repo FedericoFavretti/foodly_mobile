@@ -35,15 +35,19 @@ flutter pub get
 La URL base del backend se configura con `--dart-define`:
 
 ```bash
-# Emulador Android (default)
+# Backend online en Railway (default)
 flutter run
 
-# Dispositivo físico en red local (reemplazar con la IP del servidor)
-flutter run --dart-define=API_BASE_URL=http://192.168.1.X:8080
+# Backend local con Docker (emulador Android)
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
 
-# Producción (Railway u otro hosting)
-flutter run --dart-define=API_BASE_URL=https://api.foodly.com
+# Backend local en dispositivo físico (reemplazar con la IP de tu PC)
+flutter run --dart-define=API_BASE_URL=http://192.168.1.X:8080
 ```
+
+**URLs del proyecto:**
+- Frontend web (Railway): `https://frontend-proyecto-foodly-test.up.railway.app`
+- Backend API (Railway): `https://proyectoequipo32026-test.up.railway.app`
 
 ### Modo mock del catálogo
 

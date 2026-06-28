@@ -71,8 +71,11 @@ void main() {
 
       expect(response.id, 99);
       expect(response.estado, 'Pendiente');
-      expect(capturedBody?['dtCliente'], {'id': 5});
-      expect(capturedBody?['medioDePago'], 'simulado');
+      final dtPedido = capturedBody?['dtPedido'] as Map<String, dynamic>?;
+      expect(dtPedido?['dtCliente'], {'id': 5});
+      expect(dtPedido?['medioDePago'], 'simulado');
+      expect(dtPedido?['pagoSimulado'], true);
+      expect(capturedBody?['detalles'], isList);
     });
 
     test('carrito vacío lanza ApiException', () async {

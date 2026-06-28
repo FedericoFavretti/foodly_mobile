@@ -1,36 +1,31 @@
-/// Configuración de red. En producción usar --dart-define o flavor.
+/// Configuración de red contra el backend hosteado en Railway.
 abstract final class ApiConstants {
+  /// Backend API (Railway). Override: `--dart-define=API_BASE_URL=...`
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8080',
+    defaultValue: 'https://proyectoequipo32026-test.up.railway.app',
   );
 
+  // ── Usuarios ──────────────────────────────────────────────────────────────
   static const loginEndpoint = '/api/v1/usuarios/login';
+  static const logoutEndpoint = '/api/v1/usuarios/logout';
+  static const activarCuentaEndpoint = '/api/v1/usuarios/activar';
+  static const eliminarCuentaEndpoint = '/api/v1/usuarios/mi-cuenta';
+
+  // ── Cliente ───────────────────────────────────────────────────────────────
   static const registroEndpoint = '/api/v1/clientes/registro';
-  static const localesEndpoint = '/api/v1/clientes';
-  static const perfilClienteEndpoint = '/api/v1/usuarios/perfil';
+  static const listarLocalesEndpoint = '/api/v1/clientes/listar_locales';
+  static const busquedaPlatosEndpoint = '/api/v1/clientes/busqueda';
+
+  // ── Pedidos ───────────────────────────────────────────────────────────────
   static const pedidosEndpoint = '/api/v1/pedidos';
+  static const historialPedidosEndpoint = '/api/v1/pedidos/mi-historial';
+
+  // ── Reclamos / calificaciones ─────────────────────────────────────────────
   static const reclamoEndpoint = '/api/v1/reclamos/realizar_reclamo';
   static const calificacionEndpoint = '/api/v1/calificaciones/calificar';
-  static const logoutEndpoint = '/api/v1/usuarios/logout';
-  static const cancelarPedidoEndpoint = '/api/v1/pedidos/{idPedido}/cancelar';
 
-  // TODO(BLOQUEADO): Estos endpoints requieren clienteId del usuario autenticado.
-  // Backend debe proveer GET /api/v1/clientes/perfil o GET /api/v1/usuarios/me
-  // para obtener el clienteId. Una vez resuelto, actualizar a funciones:
-  // - historialClienteEndpoint(int idCliente) => '/api/v1/pedidos/clientes/$idCliente'
-  // - eliminarCuentaEndpoint(int idCliente) => '/api/v1/usuarios/clientes/$idCliente/cuenta-dev'
-  
-  /// Endpoint temporal - Requiere actualización cuando backend provea perfil
-  static const historialClienteEndpoint = '/api/v1/pedidos/cliente';
-  
-  /// Endpoint temporal - Requiere actualización cuando backend provea perfil
-  static const eliminarCuentaEndpoint = '/api/v1/clientes/perfil';
-
-  /// Flag para usar datos mock o API real del catálogo.
-  /// Backend GET /api/v1/clientes está funcional (desde jun-2026).
-  /// DEFAULT: usa catálogo real del backend (false)
-  /// Para desarrollo con mocks locales: flutter run --dart-define=USE_MOCK_CATALOG=true
+  /// Catálogo real por defecto. Mock: `--dart-define=USE_MOCK_CATALOG=true`
   static const useMockCatalog = bool.fromEnvironment(
     'USE_MOCK_CATALOG',
     defaultValue: false,

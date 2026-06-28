@@ -6,16 +6,11 @@ import '../../core/errors/api_exception.dart';
 import '../../core/network/api_client.dart';
 import '../../domain/session/session_manager.dart';
 import '../models/auth_response.dart';
-import 'cliente_profile_repository.dart';
 
 class AuthRepository {
-  AuthRepository({ApiClient? api, ClienteProfileRepository? profileRepository})
-      : _api = api ?? ApiClient(),
-        _profileRepository =
-            profileRepository ?? ClienteProfileRepository(api: api);
+  AuthRepository({ApiClient? api}) : _api = api ?? ApiClient();
 
   final ApiClient _api;
-  final ClienteProfileRepository _profileRepository;
 
   static const wrongCredentialsMessage =
       'El correo electrónico o la contraseña son incorrectos. Por favor, inténtelo nuevamente.';
@@ -32,7 +27,7 @@ class AuthRepository {
         ApiConstants.loginEndpoint,
         {
           'email': email.trim(),
-          'password': password,
+          'passwd': password,
         },
         requiresAuth: false,
       );
@@ -49,19 +44,20 @@ class AuthRepository {
           );
         }
         await SessionManager.saveToken(authResponse.token);
-        
-        // Guardar info del usuario si viene en la respuesta (Fase 7+)
+
         if (authResponse.usuario != null) {
+          final usuario = authResponse.usuario!;
           await SessionManager.saveUsuarioInfoJson(
-            jsonEncode(authResponse.usuario!.toJson()),
+            jsonEncode(usuario.toJson()),
           );
-        } else {
-          // Fallback: intentar obtener perfil del endpoint (bloqueado en backend)
-          try {
-            await _profileRepository.fetchAndCache();
-          } catch (_) {
-            // El login es válido aunque el perfil falle; checkout reintenta.
-          }
+          await SessionManager.saveProfileJson(
+            jsonEncode({
+              'id': usuario.id,
+              'email': usuario.email,
+              'nombre': '',
+              'apellido': '',
+            }),
+          );
         }
         
         return authResponse;

@@ -26,7 +26,7 @@ class PlatoModel {
         ? imagenesRaw.map((e) => e.toString()).toList()
         : <String>[];
 
-    final localJson = json['local'];
+    final localJson = json['local'] ?? json['dtLocal'];
     final localId = localJson is Map<String, dynamic>
         ? (localJson['id'] as num).toInt()
         : (json['localId'] as num?)?.toInt() ?? 0;

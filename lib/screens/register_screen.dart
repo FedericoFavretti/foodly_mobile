@@ -80,6 +80,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_fotoBytes == null) {
+      _showMessage('Seleccioná una foto de perfil para completar el registro.');
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -265,7 +269,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 onPressed: _isLoading ? null : _pickPhoto,
                 icon: const Icon(Icons.photo_outlined),
                 label: Text(
-                  _fotoFilename ?? 'Foto de perfil (opcional)',
+                  _fotoFilename ?? 'Foto de perfil *',
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

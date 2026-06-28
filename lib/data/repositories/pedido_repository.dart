@@ -42,15 +42,18 @@ class PedidoRepository {
     }
 
     final body = {
-      'dtLocal': {'id': localId},
-      'dtCliente': {'id': clienteId},
-      'domicilioEntrega': {
-        'calle': domicilio.calle,
-        'numero': domicilio.numero,
-        'ciudad': domicilio.ciudad,
-        'codigoPostal': domicilio.codigoPostal ?? '',
+      'dtPedido': {
+        'dtLocal': {'id': localId},
+        'dtCliente': {'id': clienteId},
+        'domicilioEntrega': {
+          'calle': domicilio.calle,
+          'numero': domicilio.numero,
+          'ciudad': domicilio.ciudad,
+          'codigoPostal': domicilio.codigoPostal ?? '',
+        },
+        'medioDePago': 'simulado',
+        'pagoSimulado': true,
       },
-      'medioDePago': 'simulado',
       'detalles': items
           .map(
             (item) => {
@@ -99,7 +102,7 @@ class PedidoRepository {
   Future<List<PedidoResponseModel>> listarHistorial() async {
     try {
       final response = await _api.get(
-        ApiConstants.historialClienteEndpoint,
+        ApiConstants.historialPedidosEndpoint,
         requiresAuth: true,
       );
 

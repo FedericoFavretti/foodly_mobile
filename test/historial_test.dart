@@ -4,10 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foodly_mobile/core/errors/api_exception.dart';
 import 'package:foodly_mobile/core/network/api_client.dart';
 import 'package:foodly_mobile/data/repositories/pedido_repository.dart';
+import 'package:foodly_mobile/domain/session/session_manager.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    SessionManager.resetForTest();
+    await SessionManager.saveToken('test.token');
+  });
+
   group('PedidoRepository.listarHistorial', () {
     test('parsea lista de pedidos', () async {
       final body = jsonEncode([
@@ -16,32 +24,18 @@ void main() {
           'total': 350.0,
           'estado': 'Pendiente',
           'local': {'nombre': 'Burger World'},
-          'domicilioEntrega': {
-            'calle': '18 de Julio',
-            'numero': '1234',
-            'ciudad': 'Montevideo',
-          },
-          'detalles': [
-            {
-              'cantidad': 2,
-              'precioUnitario': 175.0,
-              'subtotal': 350.0,
-              'plato': {'nombre': 'Hamburguesa clásica'},
-            },
-          ],
         },
         {
           'id': 2,
           'total': 200.0,
           'estado': 'Cancelado',
           'local': {'nombre': 'Pizza House'},
-          'domicilioEntrega': null,
-          'detalles': [],
         },
       ]);
 
       final client = MockClient((request) async {
-        expect(request.url.path, '/api/v1/pedidos/cliente');
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/v1/pedidos/mi-historial');
         return http.Response(body, 200);
       });
 
@@ -52,8 +46,6 @@ void main() {
       expect(pedidos[0].id, 1);
       expect(pedidos[0].estado, 'Pendiente');
       expect(pedidos[0].localNombre, 'Burger World');
-      expect(pedidos[0].detalles.length, 1);
-      expect(pedidos[0].detalles.first.platoNombre, 'Hamburguesa clásica');
       expect(pedidos[1].estado, 'Cancelado');
     });
 
