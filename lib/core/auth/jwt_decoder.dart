@@ -30,4 +30,23 @@ abstract final class JwtDecoder {
     if (upper.contains('ADMIN') || upper.contains('LOCAL')) return false;
     return upper.contains('CLIENTE') || upper == 'ROLE_USER' || upper == 'USER';
   }
+
+  /// `true` si el claim `exp` ya pasó o el token es inválido.
+  static bool isExpired(String token, {DateTime? now}) {
+    try {
+      final payload = decodePayload(token);
+      final exp = payload['exp'];
+      if (exp == null) return false;
+
+      final expSeconds = exp is num
+          ? exp.toInt()
+          : int.tryParse(exp.toString().trim());
+      if (expSeconds == null) return false;
+
+      final reference = now ?? DateTime.now();
+      return reference.millisecondsSinceEpoch >= expSeconds * 1000;
+    } catch (_) {
+      return true;
+    }
+  }
 }

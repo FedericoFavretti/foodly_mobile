@@ -2,188 +2,423 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/errors/api_exception.dart';
+import '../data/models/mi_calificacion_local_model.dart';
 import '../data/models/pedido_response_model.dart';
+import '../data/repositories/calificacion_repository.dart';
 import '../data/repositories/pedido_repository.dart';
+import '../data/repositories/reclamo_repository.dart';
+import '../domain/pedido/pedido_list_filter.dart';
+import '../domain/pedido/pedido_sort.dart';
+import '../domain/reclamo/reclamo_rules.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
+import '../widgets/calificar_dialog.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/foodly_filter_chip.dart';
+import '../widgets/pedido_card.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/wavy_accent.dart';
 
 class HistorialScreen extends StatefulWidget {
-  const HistorialScreen({super.key});
+  const HistorialScreen({
+    super.key,
+    this.onExploreLocales,
+    this.onReclamoCreado,
+  });
 
   static const routeName = '/historial';
 
+  final VoidCallback? onExploreLocales;
+  final VoidCallback? onReclamoCreado;
+
   @override
-  State<HistorialScreen> createState() => _HistorialScreenState();
+  State<HistorialScreen> createState() => HistorialScreenState();
 }
 
-class _HistorialScreenState extends State<HistorialScreen> {
+class HistorialScreenState extends State<HistorialScreen>
+    with WidgetsBindingObserver {
   final _pedidoRepository = PedidoRepository();
-  late Future<List<PedidoResponseModel>> _historialFuture;
+  final _reclamoRepository = ReclamoRepository();
+  final _calificacionRepository = CalificacionRepository();
+  List<PedidoResponseModel> _pedidos = [];
+  /// Calificaciones ya consultadas por local (`null` = sin calificación previa).
+  final Map<int, MiCalificacionLocalModel?> _calificacionesPorLocal = {};
+  bool _isLoading = true;
+  bool _isRefreshing = false;
+  Object? _error;
   String? _filtroEstado;
+  PedidoSortOption _sort = PedidoSortOption.fechaReciente;
 
   @override
   void initState() {
     super.initState();
-    _historialFuture = _pedidoRepository.listarHistorial();
+    WidgetsBinding.instance.addObserver(this);
+    _loadPedidos();
   }
 
-  void _reload() {
-    setState(() => _historialFuture = _pedidoRepository.listarHistorial());
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      refresh(silent: true);
+    }
+  }
+
+  /// Recarga pedidos desde el backend. [silent] evita el skeleton si ya hay datos.
+  Future<void> refresh({bool silent = false}) => _loadPedidos(silent: silent);
+
+  Future<void> _loadPedidos({bool silent = false}) async {
+    if (!silent || _pedidos.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    } else {
+      setState(() => _isRefreshing = true);
+    }
+
+    try {
+      final pedidos = await _pedidoRepository.listarHistorial(
+        estado: _serverEstadoParam,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pedidos = pedidos;
+        _isLoading = false;
+        _isRefreshing = false;
+      });
+      _prefetchCalificaciones(pedidos);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        if (!silent || _pedidos.isEmpty) {
+          _error = error;
+        }
+        _isLoading = false;
+        _isRefreshing = false;
+      });
+    }
   }
 
   Future<void> _reclamar(PedidoResponseModel pedido) async {
     final motivo = TextEditingController();
+    final monto = TextEditingController();
     final compensacion = TextEditingController();
+    var tipoCompensacion = _TipoCompensacionSolicitada.reintegro;
 
-    final result = await showDialog<bool>(
+    final result = await showDialog<_ReclamoFormData?>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Realizar reclamo'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Pedido Nº ${pedido.id} — ${pedido.localNombre}',
-                style: GoogleFonts.nunito(
-                  fontSize: 13,
-                  color: FoodlyColors.grisIntermedio,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: motivo,
-                decoration: const InputDecoration(
-                  labelText: 'Motivo del reclamo *',
-                  hintText: 'Describí el problema...',
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: compensacion,
-                decoration: const InputDecoration(
-                  labelText: 'Compensación solicitada',
-                  hintText: 'Ej: reembolso, reenvío...',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (motivo.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Debe describir el motivo del reclamo antes de enviarlo.',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final esReintegro =
+              tipoCompensacion == _TipoCompensacionSolicitada.reintegro;
+
+          return AlertDialog(
+            title: const Text('Realizar reclamo'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Pedido Nº ${pedido.id} — ${pedido.localNombre}',
+                    style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      color: FoodlyColors.grisIntermedio,
                     ),
                   ),
-                );
-                return;
-              }
-              Navigator.pop(context, true);
-            },
-            child: const Text('Enviar reclamo'),
-          ),
-        ],
+                  Text(
+                    'Total del pedido: \$${pedido.total.toStringAsFixed(0)}',
+                    style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: motivo,
+                    decoration: const InputDecoration(
+                      labelText: 'Motivo del reclamo *',
+                      hintText: 'Describí el problema...',
+                    ),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Compensación solicitada *',
+                    style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<_TipoCompensacionSolicitada>(
+                    segments: const [
+                      ButtonSegment(
+                        value: _TipoCompensacionSolicitada.reintegro,
+                        label: Text('Reintegro'),
+                      ),
+                      ButtonSegment(
+                        value: _TipoCompensacionSolicitada.alternativa,
+                        label: Text('Otra'),
+                      ),
+                    ],
+                    selected: {tipoCompensacion},
+                    onSelectionChanged: (selection) {
+                      setDialogState(() {
+                        tipoCompensacion = selection.first;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (esReintegro)
+                    TextField(
+                      controller: monto,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Monto de reintegro *',
+                        hintText: 'Máximo \$${pedido.total.toStringAsFixed(0)}',
+                      ),
+                    )
+                  else
+                    TextField(
+                      controller: compensacion,
+                      decoration: const InputDecoration(
+                        labelText: 'Compensación alternativa *',
+                        hintText: 'Ej: reenvío del pedido, descuento...',
+                      ),
+                      maxLines: 2,
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, null),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () {
+                  if (motivo.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Debe describir el motivo del reclamo antes de enviarlo.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (esReintegro) {
+                    final error = ReclamoRules.validarMontoReintegro(
+                      rawMonto: monto.text,
+                      totalPedido: pedido.total,
+                    );
+                    if (error != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(error)),
+                      );
+                      return;
+                    }
+                  } else {
+                    final error = ReclamoRules.validarCompensacionAlternativa(
+                      compensacion.text,
+                    );
+                    if (error != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(error)),
+                      );
+                      return;
+                    }
+                  }
+
+                  Navigator.pop(
+                    context,
+                    _ReclamoFormData(
+                      motivo: motivo.text.trim(),
+                      tipoCompensacion: esReintegro
+                          ? ReclamoRules.tipoReintegro
+                          : compensacion.text.trim(),
+                      montoReintegro: esReintegro
+                          ? double.parse(
+                              monto.text.trim().replaceAll(',', '.'),
+                            )
+                          : null,
+                    ),
+                  );
+                },
+                child: const Text('Enviar reclamo'),
+              ),
+            ],
+          );
+        },
       ),
     );
 
-    if (result != true || !mounted) return;
+    if (result == null || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Reclamo registrado como Pendiente. El endpoint de backend se integrará cuando esté disponible.',
+    try {
+      await _reclamoRepository.realizarReclamo(
+        pedidoId: pedido.id,
+        motivo: result.motivo,
+        tipoCompensacion: result.tipoCompensacion,
+        montoReintegro: result.montoReintegro,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _pedidos = _pedidos
+            .map(
+              (p) => p.id == pedido.id
+                  ? p.copyWith(tieneReclamo: true)
+                  : p,
+            )
+            .toList();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reclamo registrado correctamente.'),
         ),
-      ),
-    );
+      );
+      widget.onReclamoCreado?.call();
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.userMessage)),
+      );
+    } on NetworkException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.userMessage)),
+      );
+    }
+  }
+
+  Future<void> _prefetchCalificaciones(List<PedidoResponseModel> pedidos) async {
+    final localIds = pedidos
+        .where((p) => _puedeCalificar(p) && p.localId != null)
+        .map((p) => p.localId!)
+        .toSet();
+
+    for (final localId in localIds) {
+      if (_calificacionesPorLocal.containsKey(localId)) continue;
+      try {
+        final calificacion =
+            await _calificacionRepository.obtenerMiCalificacion(localId);
+        if (!mounted) return;
+        setState(() => _calificacionesPorLocal[localId] = calificacion);
+      } catch (_) {
+        // Silencioso: el botón sigue disponible y se reintenta al calificar.
+      }
+    }
+  }
+
+  String _labelCalificar(PedidoResponseModel pedido) {
+    final localId = pedido.localId;
+    if (localId != null && _calificacionesPorLocal[localId] != null) {
+      return 'Editar calificación';
+    }
+    return 'Calificar';
   }
 
   Future<void> _calificar(PedidoResponseModel pedido) async {
-    int puntaje = 0;
-    final comentario = TextEditingController();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Calificar local'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  pedido.localNombre,
-                  style: FoodlyTheme.sansBlack.copyWith(fontSize: 16),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (i) {
-                    final star = i + 1;
-                    return IconButton(
-                      onPressed: () => setDialogState(() => puntaje = star),
-                      icon: Icon(
-                        star <= puntaje ? Icons.star : Icons.star_border,
-                        color: FoodlyColors.amarillo,
-                        size: 36,
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: comentario,
-                  decoration: const InputDecoration(
-                    labelText: 'Comentario (opcional)',
-                  ),
-                  maxLines: 2,
-                ),
-              ],
-            ),
+    final localId = pedido.localId;
+    if (localId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No pudimos identificar el local de este pedido para calificar.',
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (puntaje == 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Seleccioná un puntaje de 1 a 5.'),
-                    ),
-                  );
-                  return;
-                }
-                Navigator.pop(context, true);
-              },
-              child: const Text('Enviar'),
-            ),
-          ],
         ),
-      ),
+      );
+      return;
+    }
+
+    MiCalificacionLocalModel? existente = _calificacionesPorLocal[localId];
+    if (!_calificacionesPorLocal.containsKey(localId)) {
+      try {
+        existente =
+            await _calificacionRepository.obtenerMiCalificacion(localId);
+        if (mounted) {
+          setState(() => _calificacionesPorLocal[localId] = existente);
+        }
+      } on ApiException catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.userMessage)),
+        );
+        return;
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No pudimos cargar tu calificación. Intentalo más tarde.'),
+          ),
+        );
+        return;
+      }
+    }
+
+    final esEdicion = existente != null;
+
+    final result = await showCalificarDialog(
+      context: context,
+      localNombre: pedido.localNombre,
+      puntajeInicial: existente?.puntaje ?? 0,
+      comentarioInicial: existente?.comentario ?? '',
+      esEdicion: esEdicion,
     );
 
-    if (result != true || !mounted) return;
+    if (result == null || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Calificación de $puntaje estrella(s) registrada. Se integrará con el backend cuando el endpoint esté disponible.',
+    try {
+      await _calificacionRepository.calificarLocal(
+        localId: localId,
+        puntaje: result.puntaje,
+        comentario: result.comentario,
+      );
+      if (!mounted) return;
+      final comentarioGuardado = result.comentario.trim();
+      setState(() {
+        _calificacionesPorLocal[localId] = MiCalificacionLocalModel(
+          id: existente?.id ?? 0,
+          puntaje: result.puntaje,
+          comentario:
+              comentarioGuardado.isEmpty ? null : comentarioGuardado,
+        );
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            esEdicion
+                ? 'Calificación actualizada correctamente.'
+                : '¡Gracias! Tu calificación fue registrada.',
+          ),
         ),
-      ),
-    );
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.userMessage)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No pudimos registrar tu calificación. Intentalo más tarde.'),
+        ),
+      );
+    }
   }
 
   Future<void> _cancelar(PedidoResponseModel pedido) async {
@@ -210,10 +445,23 @@ class _HistorialScreenState extends State<HistorialScreen> {
     try {
       await _pedidoRepository.cancelarPedido(pedido.id);
       if (!mounted) return;
+
+      setState(() {
+        _pedidos = _pedidos
+            .map(
+              (p) => p.id == pedido.id
+                  ? p.copyWith(estado: 'Cancelado')
+                  : p,
+            )
+            .toList();
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pedido cancelado.')),
       );
-      _reload();
+
+      // Sincronizar con el servidor en segundo plano.
+      await _loadPedidos();
     } on ApiException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -228,97 +476,300 @@ class _HistorialScreenState extends State<HistorialScreen> {
   }
 
   List<PedidoResponseModel> _applyFilter(List<PedidoResponseModel> all) {
-    if (_filtroEstado == null) return all;
-    return all
-        .where((p) => p.estado.toLowerCase() == _filtroEstado!.toLowerCase())
-        .toList();
+    return PedidoListFilter.apply(
+      all: all,
+      filtroEstado: _filtroEstado,
+      sort: _sort,
+    );
+  }
+
+  /// Estados con filtro server-side; "Activos" y "Todos" traen el historial completo.
+  String? get _serverEstadoParam {
+    final filtro = _filtroEstado;
+    if (filtro == null || filtro == 'Activos') return null;
+    return filtro;
+  }
+
+  void _applyEstadoFilter(String? estado) {
+    if (_filtroEstado == estado) return;
+    setState(() => _filtroEstado = estado);
+    _loadPedidos();
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _filtroEstado = null;
+      _sort = PedidoSortOption.fechaReciente;
+    });
+    _loadPedidos();
+  }
+
+  int get _pedidosActivos => _pedidos.where((p) => p.esActivo).length;
+
+  /// Pedidos confirmados o entregados pueden reclamarse (CU-CL09).
+  bool _puedeReclamar(PedidoResponseModel pedido) {
+    return ReclamoRules.puedeReclamar(
+      estado: pedido.estado,
+      tieneReclamo: pedido.tieneReclamo,
+    );
+  }
+
+  /// Solo pedidos completados o confirmados con local identificado (CU-CL10).
+  bool _puedeCalificar(PedidoResponseModel pedido) {
+    if (pedido.localId == null) return false;
+    final estado = pedido.estado.toLowerCase();
+    return estado == 'confirmado' || estado == 'entregado';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Mis pedidos',
-          style: FoodlyTheme.serifTitle.copyWith(fontSize: 22),
-        ),
-        automaticallyImplyLeading: false,
-        backgroundColor: FoodlyColors.blanco,
-        foregroundColor: FoodlyColors.grisOscuro,
-        elevation: 0,
-      ),
+      backgroundColor: FoodlyColors.blanco,
       body: Column(
         children: [
+          _PedidosHero(
+            totalPedidos: _pedidos.length,
+            pedidosActivos: _pedidosActivos,
+            isRefreshing: _isRefreshing,
+          ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Row(
               children: [
-                _FilterChip(label: 'Todos', active: _filtroEstado == null, onTap: () => setState(() => _filtroEstado = null)),
-                _FilterChip(label: 'Pendiente', active: _filtroEstado == 'Pendiente', onTap: () => setState(() => _filtroEstado = 'Pendiente')),
-                _FilterChip(label: 'Confirmado', active: _filtroEstado == 'Confirmado', onTap: () => setState(() => _filtroEstado = 'Confirmado')),
-                _FilterChip(label: 'Cancelado', active: _filtroEstado == 'Cancelado', onTap: () => setState(() => _filtroEstado = 'Cancelado')),
-                _FilterChip(label: 'Rechazado', active: _filtroEstado == 'Rechazado', onTap: () => setState(() => _filtroEstado = 'Rechazado')),
+                FoodlyFilterChip(
+                  label: 'Todos',
+                  selected: _filtroEstado == null,
+                  onTap: () => _applyEstadoFilter(null),
+                ),
+                FoodlyFilterChip(
+                  label: 'Activos',
+                  selected: _filtroEstado == 'Activos',
+                  onTap: () => _applyEstadoFilter('Activos'),
+                ),
+                FoodlyFilterChip(
+                  label: 'Pendiente',
+                  selected: _filtroEstado == 'Pendiente',
+                  onTap: () => _applyEstadoFilter('Pendiente'),
+                ),
+                FoodlyFilterChip(
+                  label: 'Confirmado',
+                  selected: _filtroEstado == 'Confirmado',
+                  onTap: () => _applyEstadoFilter('Confirmado'),
+                ),
+                FoodlyFilterChip(
+                  label: 'Entregado',
+                  selected: _filtroEstado == 'Entregado',
+                  onTap: () => _applyEstadoFilter('Entregado'),
+                ),
+                FoodlyFilterChip(
+                  label: 'Cancelado',
+                  selected: _filtroEstado == 'Cancelado',
+                  onTap: () => _applyEstadoFilter('Cancelado'),
+                ),
+                FoodlyFilterChip(
+                  label: 'Rechazado',
+                  selected: _filtroEstado == 'Rechazado',
+                  onTap: () => _applyEstadoFilter('Rechazado'),
+                ),
               ],
             ),
           ),
-          Expanded(
-            child: FutureBuilder<List<PedidoResponseModel>>(
-              future: _historialFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const PedidoListSkeleton();
-                }
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Row(
+              children: [
+                FoodlyFilterChip(
+                  label: 'Recientes',
+                  selected: _sort == PedidoSortOption.fechaReciente,
+                  onTap: () => setState(
+                    () => _sort = PedidoSortOption.fechaReciente,
+                  ),
+                ),
+                FoodlyFilterChip(
+                  label: 'Mayor precio',
+                  selected: _sort == PedidoSortOption.precioMayor,
+                  onTap: () => setState(
+                    () => _sort = PedidoSortOption.precioMayor,
+                  ),
+                ),
+                FoodlyFilterChip(
+                  label: 'Local A-Z',
+                  selected: _sort == PedidoSortOption.localAz,
+                  onTap: () => setState(() => _sort = PedidoSortOption.localAz),
+                ),
+              ],
+            ),
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
+    );
+  }
 
-                if (snapshot.hasError) {
-                  final message = snapshot.error is ApiException
-                      ? (snapshot.error as ApiException).userMessage
-                      : snapshot.error is NetworkException
-                          ? (snapshot.error as NetworkException).userMessage
-                          : 'Ocurrió un error al cargar el historial.';
-                  return ErrorState(message: message, onRetry: _reload);
-                }
+  Widget _buildBody() {
+    if (_isLoading && _pedidos.isEmpty) {
+      return const PedidoListSkeleton();
+    }
 
-                final all = snapshot.data ?? [];
+    if (_error != null) {
+      final message = _error is ApiException
+          ? (_error as ApiException).userMessage
+          : _error is NetworkException
+              ? (_error as NetworkException).userMessage
+              : 'Ocurrió un error al cargar el historial.';
+      return ErrorState(message: message, onRetry: _loadPedidos);
+    }
 
-                if (all.isEmpty) {
-                  return const EmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: 'Sin pedidos aún',
-                    subtitle:
-                        '¡Explorá los locales disponibles y realizá tu primer pedido!',
-                  );
-                }
+    if (_pedidos.isEmpty) {
+      return EmptyState(
+        icon: Icons.receipt_long_outlined,
+        title: 'Sin pedidos aún',
+        subtitle:
+            'Explorá los locales disponibles y realizá tu primer pedido.',
+        actionLabel: widget.onExploreLocales != null ? 'Explorar locales' : null,
+        onAction: widget.onExploreLocales,
+      );
+    }
 
-                final filtered = _applyFilter(all);
+    final filtered = _applyFilter(_pedidos);
 
-                if (filtered.isEmpty) {
-                  return const EmptyState(
-                    icon: Icons.filter_list_off,
-                    title: 'Sin resultados',
-                    subtitle:
-                        'No hay pedidos con el estado seleccionado.',
-                  );
-                }
+    if (filtered.isEmpty) {
+      return EmptyState(
+        icon: Icons.filter_list_off,
+        title: 'Sin resultados',
+        subtitle: 'No hay pedidos con el estado seleccionado.',
+        actionLabel: 'Limpiar filtros',
+        onAction: _clearFilters,
+      );
+    }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final p = filtered[index];
-                    return _PedidoCard(
-                      pedido: p,
-                      onCancel: p.estado == 'Pendiente'
-                          ? () => _cancelar(p)
-                          : null,
-                      onReclamar: p.estado == 'Confirmado'
-                          ? () => _reclamar(p)
-                          : null,
-                      onCalificar: () => _calificar(p),
-                    );
-                  },
-                );
-              },
+    return RefreshIndicator(
+      color: FoodlyColors.celeste,
+      onRefresh: () => _loadPedidos(silent: true),
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        itemCount: filtered.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                '${filtered.length} ${filtered.length == 1 ? 'pedido' : 'pedidos'}',
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: FoodlyColors.grisIntermedio,
+                ),
+              ),
+            );
+          }
+
+          final p = filtered[index - 1];
+          return PedidoCard(
+            pedido: p,
+            onCancel: p.estadoNormalizado == 'Pendiente' ? () => _cancelar(p) : null,
+            onReclamar: _puedeReclamar(p) ? () => _reclamar(p) : null,
+            reclamoEnviado: p.tieneReclamo,
+            onCalificar: _puedeCalificar(p) ? () => _calificar(p) : null,
+            calificarLabel: _puedeCalificar(p) ? _labelCalificar(p) : null,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PedidosHero extends StatelessWidget {
+  const _PedidosHero({
+    required this.totalPedidos,
+    required this.pedidosActivos,
+    required this.isRefreshing,
+  });
+
+  final int totalPedidos;
+  final int pedidosActivos;
+  final bool isRefreshing;
+
+  @override
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    final resumen = totalPedidos == 0
+        ? 'Todavía no tenés pedidos'
+        : pedidosActivos > 0
+            ? '$pedidosActivos ${pedidosActivos == 1 ? 'pedido activo' : 'pedidos activos'} · $totalPedidos en total'
+            : '$totalPedidos ${totalPedidos == 1 ? 'pedido' : 'pedidos'} en total';
+
+    return ColoredBox(
+      color: FoodlyColors.celeste,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, topInset + 16, 20, 20),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mis pedidos',
+                        style: GoogleFonts.dmSerifDisplay(
+                          fontSize: 30,
+                          height: 1.05,
+                          color: FoodlyColors.blanco,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Seguí el estado de tus compras',
+                        style: FoodlyTheme.sansBold.copyWith(
+                          fontSize: 15,
+                          color: FoodlyColors.amarillo,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        resumen,
+                        style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          color: FoodlyColors.blanco.withValues(alpha: 0.92),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isRefreshing)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: FoodlyColors.blanco,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(left: 20, bottom: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: WavyAccent(),
+            ),
+          ),
+          Container(
+            height: 22,
+            decoration: const BoxDecoration(
+              color: FoodlyColors.blanco,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
           ),
         ],
@@ -327,150 +778,17 @@ class _HistorialScreenState extends State<HistorialScreen> {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.active,
-    required this.onTap,
+enum _TipoCompensacionSolicitada { reintegro, alternativa }
+
+class _ReclamoFormData {
+  const _ReclamoFormData({
+    required this.motivo,
+    required this.tipoCompensacion,
+    this.montoReintegro,
   });
 
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: active,
-        onSelected: (_) => onTap(),
-      ),
-    );
-  }
-}
-
-class _PedidoCard extends StatelessWidget {
-  const _PedidoCard({
-    required this.pedido,
-    this.onCancel,
-    this.onReclamar,
-    this.onCalificar,
-  });
-
-  final PedidoResponseModel pedido;
-  final VoidCallback? onCancel;
-  final VoidCallback? onReclamar;
-  final VoidCallback? onCalificar;
-
-  Color _estadoColor() {
-    switch (pedido.estado) {
-      case 'Pendiente':
-        return FoodlyColors.amarillo;
-      case 'Confirmado':
-        return FoodlyColors.celeste;
-      case 'Cancelado':
-        return FoodlyColors.grisIntermedio;
-      case 'Rechazado':
-        return const Color(0xFFD32F2F);
-      default:
-        return FoodlyColors.grisIntermedio;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    pedido.localNombre,
-                    style: FoodlyTheme.sansBlack.copyWith(fontSize: 16),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _estadoColor().withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    pedido.estado,
-                    style: GoogleFonts.nunito(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: _estadoColor(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Pedido Nº ${pedido.id}',
-              style: GoogleFonts.nunito(
-                fontSize: 13,
-                color: FoodlyColors.grisIntermedio,
-              ),
-            ),
-            const SizedBox(height: 4),
-            ...pedido.detalles.map(
-              (d) => Text(
-                '${d.cantidad}x ${d.platoNombre} — \$${d.subtotal.toStringAsFixed(0)}',
-                style: GoogleFonts.nunito(fontSize: 13),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Total: \$${pedido.total.toStringAsFixed(0)}',
-              style: FoodlyTheme.sansBold.copyWith(fontSize: 15),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                if (onCancel != null)
-                  TextButton(
-                    onPressed: onCancel,
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFD32F2F),
-                    ),
-                    child: const Text('CANCELAR'),
-                  ),
-                if (onReclamar != null)
-                  TextButton(
-                    onPressed: onReclamar,
-                    style: TextButton.styleFrom(
-                      foregroundColor: FoodlyColors.grisOscuro,
-                    ),
-                    child: const Text('RECLAMAR'),
-                  ),
-                if (onCalificar != null)
-                  TextButton.icon(
-                    onPressed: onCalificar,
-                    icon: const Icon(Icons.star_border, size: 18),
-                    label: const Text('CALIFICAR'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: FoodlyColors.celeste,
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  final String motivo;
+  final String tipoCompensacion;
+  final double? montoReintegro;
 }
 

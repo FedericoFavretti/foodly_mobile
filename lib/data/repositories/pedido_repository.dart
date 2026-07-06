@@ -4,6 +4,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_client.dart';
 import '../../domain/cart/cart_item.dart';
+import '../../domain/pedido/medio_pago.dart';
 import '../models/direccion_model.dart';
 import '../models/pedido_response_model.dart';
 
@@ -24,6 +25,7 @@ class PedidoRepository {
     required int localId,
     required DireccionModel domicilio,
     required List<CartItem> items,
+    required MedioPago medioPago,
   }) async {
     if (items.isEmpty) {
       throw const ApiException(
@@ -51,8 +53,8 @@ class PedidoRepository {
           'ciudad': domicilio.ciudad,
           'codigoPostal': domicilio.codigoPostal ?? '',
         },
-        'medioDePago': 'simulado',
-        'pagoSimulado': true,
+        'medioDePago': medioPago.apiValue,
+        'pagoSimulado': false,
       },
       'detalles': items
           .map(
@@ -99,11 +101,16 @@ class PedidoRepository {
     }
   }
 
-  Future<List<PedidoResponseModel>> listarHistorial() async {
+  Future<List<PedidoResponseModel>> listarHistorial({String? estado}) async {
     try {
+      final queryParameters = estado != null && estado.trim().isNotEmpty
+          ? {'estado': estado.trim()}
+          : null;
+
       final response = await _api.get(
         ApiConstants.historialPedidosEndpoint,
         requiresAuth: true,
+        queryParameters: queryParameters,
       );
 
       if (response.statusCode == 200) {

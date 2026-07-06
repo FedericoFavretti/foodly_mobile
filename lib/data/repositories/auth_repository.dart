@@ -6,6 +6,7 @@ import '../../core/errors/api_exception.dart';
 import '../../core/network/api_client.dart';
 import '../../domain/session/session_manager.dart';
 import '../models/auth_response.dart';
+import '../models/cliente_profile_model.dart';
 
 class AuthRepository {
   AuthRepository({ApiClient? api}) : _api = api ?? ApiClient();
@@ -14,6 +15,9 @@ class AuthRepository {
 
   static const wrongCredentialsMessage =
       'El correo electrónico o la contraseña son incorrectos. Por favor, inténtelo nuevamente.';
+
+  static const accountNotActivatedMessage =
+      'Usuario no activado o bloqueado.';
 
   static const notClienteMessage =
       'Esta aplicación es exclusiva para clientes.';
@@ -50,23 +54,22 @@ class AuthRepository {
           await SessionManager.saveUsuarioInfoJson(
             jsonEncode(usuario.toJson()),
           );
+        }
+
+        final profileFromLogin = ClienteProfileModel.tryFromLoginJson(data);
+        if (profileFromLogin != null) {
           await SessionManager.saveProfileJson(
-            jsonEncode({
-              'id': usuario.id,
-              'email': usuario.email,
-              'nombre': '',
-              'apellido': '',
-            }),
+            jsonEncode(profileFromLogin.toJson()),
           );
         }
         
         return authResponse;
       }
 
-      if (response.statusCode == 401) {
-        throw const ApiException(
-          statusCode: 401,
-          userMessage: wrongCredentialsMessage,
+      if (response.statusCode == 401 || response.statusCode == 404) {
+        throw ApiException(
+          statusCode: response.statusCode,
+          userMessage: _mapLoginErrorMessage(response.body, response.statusCode),
         );
       }
 
@@ -106,5 +109,26 @@ class AuthRepository {
       // Siempre limpiar la sesión local
       await SessionManager.clearSession();
     }
+  }
+
+  String _mapLoginErrorMessage(String body, int statusCode) {
+    final backendMessage = _mapErrorMessage(body);
+    if (backendMessage != null) return backendMessage;
+    if (statusCode == 404) return accountNotActivatedMessage;
+    return wrongCredentialsMessage;
+  }
+
+  String? _mapErrorMessage(String body) {
+    if (body.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final message =
+            decoded['mensaje'] ?? decoded['message'] ?? decoded['error'];
+        if (message is String && message.isNotEmpty) return message;
+      }
+    } catch (_) {}
+    if (body.length < 300 && !body.contains('<html')) return body;
+    return null;
   }
 }

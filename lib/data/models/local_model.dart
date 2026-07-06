@@ -8,6 +8,7 @@ class LocalModel {
     required this.calificacionGlobal,
     required this.estaAbierto,
     required this.imagenes,
+    this.foto,
     this.direccion,
   });
 
@@ -17,10 +18,14 @@ class LocalModel {
   final double calificacionGlobal;
   final bool estaAbierto;
   final List<String> imagenes;
+  final String? foto;
   final DireccionModel? direccion;
 
-  String? get imagenPrincipal =>
-      imagenes.isNotEmpty ? imagenes.first : null;
+  /// Misma prioridad que el frontend web: `foto` (logo) y luego `imagenes[0]`.
+  String? get imagenPrincipal {
+    if (foto != null && foto!.trim().isNotEmpty) return foto;
+    return imagenes.isNotEmpty ? imagenes.first : null;
+  }
 
   factory LocalModel.fromJson(Map<String, dynamic> json) {
     final imagenesRaw = json['imagenes'];
@@ -36,6 +41,7 @@ class LocalModel {
       calificacionGlobal: (json['calificacionGlobal'] as num?)?.toDouble() ?? 0,
       estaAbierto: json['estaAbierto'] as bool? ?? false,
       imagenes: imagenes,
+      foto: json['foto'] as String?,
       direccion: direccionJson is Map<String, dynamic>
           ? DireccionModel.fromJson(direccionJson)
           : null,

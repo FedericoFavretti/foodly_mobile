@@ -29,6 +29,17 @@ class CatalogFilter {
     return result;
   }
 
+  /// Locales abiertos mejor calificados para el carrusel de destacados.
+  static List<LocalModel> destacados({
+    required List<LocalModel> locales,
+    int limit = 5,
+  }) {
+    final abiertos = locales.where((local) => local.estaAbierto).toList()
+      ..sort((a, b) => b.calificacionGlobal.compareTo(a.calificacionGlobal));
+    if (abiertos.length <= limit) return abiertos;
+    return abiertos.sublist(0, limit);
+  }
+
   static List<PlatoModel> filterPlatos({
     required List<PlatoModel> platos,
     required int localId,

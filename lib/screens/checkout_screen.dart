@@ -7,7 +7,10 @@ import '../data/models/direccion_model.dart';
 import '../data/repositories/catalog_repository.dart';
 import '../data/repositories/cliente_profile_repository.dart';
 import '../data/repositories/pedido_repository.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../domain/cart/cart_notifier.dart';
+import '../domain/pedido/medio_pago.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
 import '../widgets/foodly_button.dart';
@@ -34,6 +37,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool _loadingProfile = true;
   bool _submitting = false;
+  MedioPago _medioPago = MedioPago.mercadoPago;
 
   @override
   void initState() {
@@ -105,7 +109,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           codigoPostal: _cpController.text.trim(),
         ),
         items: cart.items.toList(),
+        medioPago: _medioPago,
       );
+
+      if (_medioPago == MedioPago.mercadoPago) {
+        final initPoint = pedido.mpInitPoint?.trim();
+        if (initPoint == null || initPoint.isEmpty) {
+          throw const ApiException(
+            statusCode: 502,
+            userMessage:
+                'No pudimos generar el link de pago. Intentalo nuevamente.',
+          );
+        }
+        final uri = Uri.tryParse(initPoint);
+        if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+          throw const ApiException(
+            statusCode: 0,
+            userMessage: 'No pudimos abrir Mercado Pago en tu dispositivo.',
+          );
+        }
+      }
 
       cart.clear();
       if (!mounted) return;
@@ -209,15 +232,82 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Medio de pago: simulado',
-                    style: GoogleFonts.nunito(
-                      fontSize: 14,
-                      color: FoodlyColors.grisIntermedio,
-                    ),
+                    'Medio de pago',
+                    style: FoodlyTheme.sansBlack.copyWith(fontSize: 16),
                   ),
+                  const SizedBox(height: 12),
+                  ...MedioPago.values.map((medio) {
+                    final selected = _medioPago == medio;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: InkWell(
+                        onTap: _submitting
+                            ? null
+                            : () => setState(() => _medioPago = medio),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selected
+                                  ? FoodlyColors.celeste
+                                  : FoodlyColors.grisClaro,
+                              width: selected ? 2 : 1,
+                            ),
+                            color: selected
+                                ? FoodlyColors.celeste.withValues(alpha: 0.08)
+                                : FoodlyColors.blanco,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                selected
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_off,
+                                color: selected
+                                    ? FoodlyColors.celeste
+                                    : FoodlyColors.grisIntermedio,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      medio.label,
+                                      style: GoogleFonts.nunito(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      medio.descripcion,
+                                      style: GoogleFonts.nunito(
+                                        fontSize: 12,
+                                        color: FoodlyColors.grisIntermedio,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                   const SizedBox(height: 24),
                   FoodlyButton(
-                    label: _submitting ? 'CONFIRMANDO...' : 'REALIZAR PEDIDO',
+                    label: _submitting
+                        ? (_medioPago == MedioPago.mercadoPago
+                            ? 'GENERANDO PAGO...'
+                            : 'CONFIRMANDO PEDIDO...')
+                        : (_medioPago == MedioPago.mercadoPago
+                            ? 'PAGAR CON MERCADO PAGO'
+                            : 'CONFIRMAR PEDIDO EN EFECTIVO'),
                     onPressed: _submitting ? null : _confirmarPedido,
                   ),
                 ],

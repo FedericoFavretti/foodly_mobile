@@ -12,12 +12,16 @@ import '../widgets/auth_layout.dart';
 import '../widgets/foodly_button.dart';
 import '../widgets/password_field.dart';
 import '../widgets/wavy_accent.dart';
+import 'activate_account_screen.dart';
+import 'forgot_password_screen.dart';
 import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.successMessage});
 
   static const routeName = '/login';
+
+  final String? successMessage;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -36,6 +40,12 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _checkBiometricAvailability();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final message = widget.successMessage;
+      if (message != null && message.isNotEmpty) {
+        _showMessage(message);
+      }
+    });
   }
 
   @override
@@ -102,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, MainScreen.routeName);
     } on ApiException catch (error) {
-      _showMessage(error.userMessage);
+      _showLoginError(error);
     } on NetworkException catch (error) {
       _showMessage(error.userMessage);
     } finally {
@@ -149,6 +159,27 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  void _showLoginError(ApiException error) {
+    if (!mounted) return;
+    if (error.statusCode == 404) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.userMessage),
+          action: SnackBarAction(
+            label: 'Activar',
+            onPressed: () => Navigator.pushNamed(
+              context,
+              ActivateAccountScreen.routeName,
+              arguments: _emailController.text.trim(),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    _showMessage(error.userMessage);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AuthLayout(
@@ -193,7 +224,12 @@ class _LoginScreenState extends State<LoginScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: _isLoading ? null : () {},
+                onPressed: _isLoading
+                    ? null
+                    : () => Navigator.pushNamed(
+                          context,
+                          ForgotPasswordScreen.routeName,
+                        ),
                 child: Text(
                   '¿Olvidaste tu contraseña?',
                   style: FoodlyTheme.sansBold.copyWith(

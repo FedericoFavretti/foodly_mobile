@@ -13,6 +13,7 @@ import '../widgets/auth_layout.dart';
 import '../widgets/foodly_button.dart';
 import '../widgets/google_icon.dart';
 import '../widgets/password_field.dart';
+import 'activate_account_screen.dart';
 import '../widgets/wavy_accent.dart';
 
 const _passwordHint = [
@@ -103,7 +104,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
       if (!mounted) return;
-      await showDialog<void>(
+      final email = _emailController.text.trim();
+      final goActivate = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Cuenta creada'),
@@ -112,14 +114,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('ENTENDIDO'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('ACTIVAR AHORA'),
             ),
           ],
         ),
       );
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/login');
+      if (goActivate == true) {
+        Navigator.pushReplacementNamed(
+          context,
+          ActivateAccountScreen.routeName,
+          arguments: email,
+        );
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     } on ApiException catch (error) {
       _showMessage(error.userMessage);
     } on NetworkException catch (error) {

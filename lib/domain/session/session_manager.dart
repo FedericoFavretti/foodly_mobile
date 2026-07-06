@@ -17,8 +17,19 @@ class SessionManager {
   static String? _memoryProfile;
   static String? _memoryBiometric;
   static String? _memoryUsuarioInfo;
+  static bool _forceMemoryForTest = false;
+
+  @visibleForTesting
+  static void enableMemoryStorageForTest() {
+    _forceMemoryForTest = true;
+    resetForTest();
+  }
 
   static Future<void> saveToken(String token) async {
+    if (_forceMemoryForTest) {
+      _memoryToken = token;
+      return;
+    }
     try {
       await _storage.write(key: _keyToken, value: token);
       _memoryToken = null;
@@ -32,6 +43,7 @@ class SessionManager {
   }
 
   static Future<String?> getToken() async {
+    if (_forceMemoryForTest) return _memoryToken;
     try {
       final secure = await _storage.read(key: _keyToken);
       if (secure != null) return secure;
@@ -42,6 +54,10 @@ class SessionManager {
   }
 
   static Future<void> saveProfileJson(String json) async {
+    if (_forceMemoryForTest) {
+      _memoryProfile = json;
+      return;
+    }
     try {
       await _storage.write(key: _keyProfile, value: json);
       _memoryProfile = null;
@@ -55,6 +71,7 @@ class SessionManager {
   }
 
   static Future<String?> getProfileJson() async {
+    if (_forceMemoryForTest) return _memoryProfile;
     try {
       final secure = await _storage.read(key: _keyProfile);
       if (secure != null) return secure;
@@ -63,6 +80,10 @@ class SessionManager {
   }
 
   static Future<void> saveUsuarioInfoJson(String json) async {
+    if (_forceMemoryForTest) {
+      _memoryUsuarioInfo = json;
+      return;
+    }
     try {
       await _storage.write(key: _keyUsuarioInfo, value: json);
       _memoryUsuarioInfo = null;
@@ -76,6 +97,7 @@ class SessionManager {
   }
 
   static Future<String?> getUsuarioInfoJson() async {
+    if (_forceMemoryForTest) return _memoryUsuarioInfo;
     try {
       final secure = await _storage.read(key: _keyUsuarioInfo);
       if (secure != null) return secure;
@@ -88,6 +110,7 @@ class SessionManager {
     _memoryProfile = null;
     _memoryBiometric = null;
     _memoryUsuarioInfo = null;
+    if (_forceMemoryForTest) return;
     try {
       await _storage.delete(key: _keyToken);
       await _storage.delete(key: _keyProfile);
@@ -103,6 +126,11 @@ class SessionManager {
   /// Devuelve `true` si el usuario activó biometría, `false` si la rechazó,
   /// `null` si nunca se le preguntó.
   static Future<bool?> getBiometricEnabled() async {
+    if (_forceMemoryForTest) {
+      final raw = _memoryBiometric;
+      if (raw == null) return null;
+      return raw == 'true';
+    }
     String? raw;
     try {
       raw = await _storage.read(key: _keyBiometric);
@@ -115,6 +143,10 @@ class SessionManager {
 
   static Future<void> setBiometricEnabled(bool enabled) async {
     final value = enabled ? 'true' : 'false';
+    if (_forceMemoryForTest) {
+      _memoryBiometric = value;
+      return;
+    }
     try {
       await _storage.write(key: _keyBiometric, value: value);
       _memoryBiometric = null;

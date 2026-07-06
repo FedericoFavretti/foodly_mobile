@@ -17,79 +17,132 @@ class PlatoCard extends StatelessWidget {
   final VoidCallback? onAdd;
   final bool canAdd;
 
+  bool get _canAddItem => canAdd && plato.disponible && onAdd != null;
+
   @override
   Widget build(BuildContext context) {
-    final opacity = plato.disponible ? 1.0 : 0.55;
-
     return Opacity(
-      opacity: opacity,
+      opacity: plato.disponible ? 1 : 0.6,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           color: FoodlyColors.blanco,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: FoodlyColors.negro.withValues(alpha: 0.08)),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: FoodlyColors.grisOscuro.withValues(alpha: 0.07),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _PlatoImage(url: plato.imagenPrincipal),
-            const SizedBox(width: 12),
-            Expanded(
+            Stack(
+              children: [
+                _PlatoImage(url: plato.imagenPrincipal),
+                if (plato.tienePromocion && plato.descuentoPercent != null)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: _StatusBadge(
+                      label: '-${plato.descuentoPercent}%',
+                      background: FoodlyColors.amarillo,
+                      foreground: FoodlyColors.grisOscuro,
+                    ),
+                  ),
+                if (!plato.disponible)
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: _StatusBadge(
+                      label: 'No disponible',
+                      background: FoodlyColors.grisOscuro.withValues(alpha: 0.8),
+                      foreground: FoodlyColors.blanco,
+                    ),
+                  ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     plato.nombre,
                     style: FoodlyTheme.sansBlack.copyWith(
-                      fontSize: 15,
+                      fontSize: 17,
                       color: FoodlyColors.grisOscuro,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    plato.descripcion,
-                    style: GoogleFonts.nunito(
-                      fontSize: 13,
-                      height: 1.35,
-                      color: FoodlyColors.grisIntermedio,
+                  if (plato.descripcion.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      plato.descripcion,
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: FoodlyColors.grisIntermedio,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
+                  ],
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      Text(
-                        '\$${plato.precio.toStringAsFixed(0)}',
-                        style: GoogleFonts.nunito(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: FoodlyColors.celeste,
-                        ),
-                      ),
-                      if (!plato.disponible) ...[
-                        const SizedBox(width: 8),
+                      if (plato.tienePromocion &&
+                          plato.precioOriginal != null) ...[
                         Text(
-                          'No disponible',
+                          '\$${plato.precioOriginal!.toStringAsFixed(0)}',
                           style: GoogleFonts.nunito(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
                             color: FoodlyColors.grisIntermedio,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: FoodlyColors.grisIntermedio,
                           ),
                         ),
+                        const SizedBox(width: 8),
                       ],
+                      Text(
+                        '\$${plato.precioFinal.toStringAsFixed(0)}',
+                        style: GoogleFonts.nunito(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: plato.tienePromocion
+                              ? const Color(0xFFE65100)
+                              : FoodlyColors.celeste,
+                        ),
+                      ),
                       const Spacer(),
-                      if (canAdd && plato.disponible)
-                        IconButton.filled(
+                      if (_canAddItem)
+                        FilledButton.icon(
                           onPressed: onAdd,
-                          icon: const Icon(Icons.add, size: 20),
-                          style: IconButton.styleFrom(
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Agregar'),
+                          style: FilledButton.styleFrom(
                             backgroundColor: FoodlyColors.celeste,
                             foregroundColor: FoodlyColors.blanco,
-                            minimumSize: const Size(36, 36),
-                            padding: EdgeInsets.zero,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            elevation: 0,
+                          ),
+                        )
+                      else if (canAdd && !plato.disponible)
+                        Text(
+                          'Sin stock',
+                          style: GoogleFonts.nunito(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: FoodlyColors.grisIntermedio,
                           ),
                         ),
                     ],
@@ -104,43 +157,100 @@ class PlatoCard extends StatelessWidget {
   }
 }
 
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.nunito(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: foreground,
+        ),
+      ),
+    );
+  }
+}
+
 class _PlatoImage extends StatelessWidget {
   const _PlatoImage({this.url});
 
   final String? url;
 
+  static const _height = 148.0;
+
   @override
   Widget build(BuildContext context) {
-    const size = 72.0;
-
     if (url == null || url!.isEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: size,
-          height: size,
-          color: FoodlyColors.grisClaro,
-          child: const Icon(
-            Icons.restaurant_menu,
-            color: FoodlyColors.amarillo,
-          ),
-        ),
-      );
+      return _PlaceholderImage(height: _height);
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Image.network(
-        url!,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          width: size,
-          height: size,
-          color: FoodlyColors.grisClaro,
-          child: const Icon(Icons.broken_image_outlined),
+    return Image.network(
+      url!,
+      height: _height,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) =>
+          _PlaceholderImage(height: _height),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return _PlaceholderImage(
+          height: _height,
+          child: const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: FoodlyColors.blanco,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PlaceholderImage extends StatelessWidget {
+  const _PlaceholderImage({required this.height, this.child});
+
+  final double height;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [FoodlyColors.celesteOscuro, FoodlyColors.amarillo],
         ),
+      ),
+      child: Center(
+        child: child ??
+            Icon(
+              Icons.restaurant_menu,
+              size: height * 0.28,
+              color: FoodlyColors.blanco.withValues(alpha: 0.9),
+            ),
       ),
     );
   }

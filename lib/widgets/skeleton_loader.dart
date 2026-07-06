@@ -92,37 +92,77 @@ class ProfileHeaderSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return const ProfileScreenSkeleton();
+  }
+}
+
+/// Skeleton de las cards del perfil.
+class ProfileScreenSkeleton extends StatelessWidget {
+  const ProfileScreenSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
-        Shimmer.fromColors(
-          baseColor: FoodlyColors.grisClaro,
-          highlightColor: Colors.white,
-          child: const CircleAvatar(
-            radius: 40,
-            backgroundColor: FoodlyColors.grisClaro,
-          ),
-        ),
+        _cardSkeleton(rows: 3),
         const SizedBox(height: 16),
-        const SkeletonBox(width: 180, height: 20),
-        const SizedBox(height: 24),
-        _tile(),
-        const SizedBox(height: 12),
-        _tile(),
+        _cardSkeleton(rows: 1),
+        const SizedBox(height: 16),
+        _cardSkeleton(rows: 2),
       ],
+    );
+  }
+
+  Widget _cardSkeleton({required int rows}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: FoodlyColors.blanco,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: FoodlyColors.grisClaro),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Shimmer.fromColors(
+                baseColor: FoodlyColors.grisClaro,
+                highlightColor: Colors.white,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: FoodlyColors.grisClaro,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const SkeletonBox(width: 120, height: 16),
+            ],
+          ),
+          const SizedBox(height: 16),
+          for (var i = 0; i < rows; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            _tile(),
+          ],
+        ],
+      ),
     );
   }
 
   Widget _tile() {
     return Row(
       children: [
-        const SkeletonBox(width: 20, height: 20),
+        const SkeletonBox(width: 18, height: 18),
         const SizedBox(width: 12),
         const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SkeletonBox(width: 80, height: 11),
-              SizedBox(height: 4),
+              SizedBox(height: 6),
               SkeletonBox(width: double.infinity, height: 15),
             ],
           ),
@@ -148,7 +188,7 @@ class LocalCardSkeleton extends StatelessWidget {
             baseColor: FoodlyColors.grisClaro,
             highlightColor: Colors.white,
             child: Container(
-              height: 140,
+              height: 168,
               color: FoodlyColors.grisClaro,
             ),
           ),
@@ -185,6 +225,69 @@ class LocalListSkeleton extends StatelessWidget {
       shrinkWrap: true,
       itemCount: count,
       itemBuilder: (context, index) => const LocalCardSkeleton(),
+    );
+  }
+}
+
+/// Skeleton para una card de plato en el menú del local.
+class PlatoCardSkeleton extends StatelessWidget {
+  const PlatoCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: FoodlyColors.blanco,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Shimmer.fromColors(
+            baseColor: FoodlyColors.grisClaro,
+            highlightColor: Colors.white,
+            child: Container(
+              height: 148,
+              color: FoodlyColors.grisClaro,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                SkeletonBox(width: 180, height: 18),
+                SizedBox(height: 8),
+                SkeletonBox(width: double.infinity, height: 12),
+                SizedBox(height: 6),
+                SkeletonBox(width: 220, height: 12),
+                SizedBox(height: 14),
+                SkeletonBox(width: 80, height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Lista de N skeletons de plato.
+class PlatoListSkeleton extends StatelessWidget {
+  const PlatoListSkeleton({super.key, this.count = 4});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: count,
+      itemBuilder: (context, index) => const PlatoCardSkeleton(),
     );
   }
 }

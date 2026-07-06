@@ -23,13 +23,16 @@ void main() {
           'id': 1,
           'total': 350.0,
           'estado': 'Pendiente',
-          'local': {'nombre': 'Burger World'},
+          'fecha': '2026-06-10T12:00:00',
+          'medioDePago': 'efectivo',
+          'local': {'id': 1, 'nombre': 'Burger World'},
         },
         {
           'id': 2,
           'total': 200.0,
-          'estado': 'Cancelado',
-          'local': {'nombre': 'Pizza House'},
+          'estado': 'Confirmado',
+          'local': {'id': 2, 'nombre': 'Pizza House'},
+          'tieneReclamo': true,
         },
       ]);
 
@@ -46,7 +49,12 @@ void main() {
       expect(pedidos[0].id, 1);
       expect(pedidos[0].estado, 'Pendiente');
       expect(pedidos[0].localNombre, 'Burger World');
-      expect(pedidos[1].estado, 'Cancelado');
+      expect(pedidos[0].localId, 1);
+      expect(pedidos[0].fecha, isNotNull);
+      expect(pedidos[0].medioPagoLabel, 'Efectivo');
+      expect(pedidos[1].estado, 'Confirmado');
+      expect(pedidos[1].localId, 2);
+      expect(pedidos[1].tieneReclamo, isTrue);
     });
 
     test('lista vacía retorna empty list', () async {
@@ -102,6 +110,28 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('estado en query filtra server-side', () async {
+      final client = MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/v1/pedidos/mi-historial');
+        expect(request.url.queryParameters['estado'], 'Confirmado');
+        return http.Response('[]', 200);
+      });
+
+      final repo = PedidoRepository(api: ApiClient(client: client));
+      await repo.listarHistorial(estado: 'Confirmado');
+    });
+
+    test('Todos omite query estado', () async {
+      final client = MockClient((request) async {
+        expect(request.url.queryParameters.containsKey('estado'), isFalse);
+        return http.Response('[]', 200);
+      });
+
+      final repo = PedidoRepository(api: ApiClient(client: client));
+      await repo.listarHistorial();
     });
   });
 }

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/models/pedido_response_model.dart';
+import '../screens/main_screen.dart';
 import '../theme/foodly_colors.dart';
-import '../theme/foodly_theme.dart';
 import '../widgets/foodly_button.dart';
-import 'main_screen.dart';
+import '../widgets/pedido_card.dart';
 
 class OrderStatusScreen extends StatelessWidget {
   const OrderStatusScreen({super.key, required this.pedido});
@@ -16,97 +17,88 @@ class OrderStatusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final esMercadoPago = pedido.requierePagoMercadoPago;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Pedido confirmado',
-          style: FoodlyTheme.serifTitle.copyWith(fontSize: 22),
-        ),
-        automaticallyImplyLeading: false,
-        backgroundColor: FoodlyColors.blanco,
-        foregroundColor: FoodlyColors.grisOscuro,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: FoodlyColors.grisClaro,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '¡Pedido registrado!',
-                    style: FoodlyTheme.serifTitle.copyWith(fontSize: 24),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Nº ${pedido.id} · ${pedido.localNombre}',
-                    style: GoogleFonts.nunito(
-                      fontSize: 15,
-                      color: FoodlyColors.grisIntermedio,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Estado: ${pedido.estado}',
-                    style: FoodlyTheme.sansBold.copyWith(
-                      fontSize: 15,
-                      color: FoodlyColors.celeste,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Total: \$${pedido.total.toStringAsFixed(0)}',
-                    style: FoodlyTheme.sansBlack.copyWith(fontSize: 20),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Detalle',
-              style: FoodlyTheme.sansBlack.copyWith(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            ...pedido.detalles.map(
-              (detalle) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${detalle.cantidad}x ${detalle.platoNombre}',
-                        style: GoogleFonts.nunito(fontSize: 14),
-                      ),
-                    ),
-                    Text(
-                      '\$${detalle.subtotal.toStringAsFixed(0)}',
-                      style: FoodlyTheme.sansBold.copyWith(fontSize: 14),
-                    ),
-                  ],
+      backgroundColor: FoodlyColors.blanco,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: FoodlyColors.celeste.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  size: 44,
+                  color: FoodlyColors.celeste,
                 ),
               ),
-            ),
-            const SizedBox(height: 32),
-            FoodlyButton(
-              label: 'VOLVER A LOCALES',
-              onPressed: () {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  MainScreen.routeName,
-                  (route) => route.isFirst,
-                );
-              },
-            ),
-          ],
+              const SizedBox(height: 20),
+              Text(
+                '¡Pedido registrado!',
+                style: GoogleFonts.dmSerifDisplay(
+                  fontSize: 30,
+                  color: FoodlyColors.grisOscuro,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                esMercadoPago
+                    ? 'Completá el pago en Mercado Pago para que el local reciba tu pedido.'
+                    : 'Pagás en efectivo al recibir el pedido.',
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  height: 1.4,
+                  color: FoodlyColors.grisIntermedio,
+                ),
+              ),
+              const SizedBox(height: 24),
+              PedidoCard(pedido: pedido),
+              if (pedido.puedeCompletarPagoMercadoPago) ...[
+                const SizedBox(height: 16),
+                FoodlyButton(
+                  label: 'ABRIR MERCADO PAGO',
+                  onPressed: () async {
+                    final uri = Uri.tryParse(pedido.mpInitPoint!.trim());
+                    if (uri != null) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
+              ],
+              const SizedBox(height: 16),
+              FoodlyButton(
+                label: 'VER MIS PEDIDOS',
+                variant: FoodlyButtonVariant.outline,
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    MainScreen.routeName,
+                    (route) => route.isFirst,
+                    arguments: 1,
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              FoodlyButton(
+                label: 'SEGUIR COMPRANDO',
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    MainScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

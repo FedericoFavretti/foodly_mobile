@@ -14,10 +14,12 @@ class ApiClient {
   Future<http.Response> get(
     String endpoint, {
     bool requiresAuth = true,
+    Map<String, String>? queryParameters,
   }) async {
     return _execute(() async {
       final headers = await _buildHeaders(requiresAuth: requiresAuth);
-      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint')
+          .replace(queryParameters: queryParameters);
       return _client.get(uri, headers: headers);
     }, requiresAuth: requiresAuth);
   }
@@ -26,15 +28,31 @@ class ApiClient {
     String endpoint,
     Map<String, dynamic> body, {
     bool requiresAuth = false,
+    Map<String, String>? queryParameters,
   }) async {
     return _execute(() async {
       final headers = await _buildHeaders(requiresAuth: requiresAuth);
-      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint')
+          .replace(queryParameters: queryParameters);
       return _client.post(
         uri,
         headers: headers,
         body: jsonEncode(body),
       );
+    }, requiresAuth: requiresAuth);
+  }
+
+  /// POST sin body (p. ej. activación con query params).
+  Future<http.Response> postEmpty(
+    String endpoint, {
+    Map<String, String>? queryParameters,
+    bool requiresAuth = false,
+  }) async {
+    return _execute(() async {
+      final headers = await _buildHeaders(requiresAuth: requiresAuth);
+      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint')
+          .replace(queryParameters: queryParameters);
+      return _client.post(uri, headers: headers);
     }, requiresAuth: requiresAuth);
   }
 
@@ -55,9 +73,40 @@ class ApiClient {
     required Map<String, http.MultipartFile> files,
     bool requiresAuth = false,
   }) async {
+    return _multipart(
+      method: 'POST',
+      endpoint: endpoint,
+      fields: fields,
+      files: files,
+      requiresAuth: requiresAuth,
+    );
+  }
+
+  Future<http.Response> putMultipart({
+    required String endpoint,
+    required Map<String, String> fields,
+    required Map<String, http.MultipartFile> files,
+    bool requiresAuth = true,
+  }) async {
+    return _multipart(
+      method: 'PUT',
+      endpoint: endpoint,
+      fields: fields,
+      files: files,
+      requiresAuth: requiresAuth,
+    );
+  }
+
+  Future<http.Response> _multipart({
+    required String method,
+    required String endpoint,
+    required Map<String, String> fields,
+    required Map<String, http.MultipartFile> files,
+    required bool requiresAuth,
+  }) async {
     return _execute(() async {
       final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
-      final request = http.MultipartRequest('POST', uri);
+      final request = http.MultipartRequest(method, uri);
       final headers = await _buildHeaders(
         requiresAuth: requiresAuth,
         jsonContentType: false,
@@ -65,11 +114,22 @@ class ApiClient {
       request.headers.addAll(headers);
       request.fields.addAll(fields);
       request.files.addAll(files.values);
-      final streamed = await request.send().timeout(
-        const Duration(seconds: ApiConstants.timeoutSeconds),
-      );
+      final streamed = await _sendMultipart(request);
       return http.Response.fromStream(streamed);
     }, requiresAuth: requiresAuth);
+  }
+
+  Future<http.StreamedResponse> _sendMultipart(
+    http.MultipartRequest request,
+  ) async {
+    if (_client case final http.BaseClient baseClient) {
+      return baseClient.send(request).timeout(
+        const Duration(seconds: ApiConstants.timeoutSeconds),
+      );
+    }
+    return request.send().timeout(
+      const Duration(seconds: ApiConstants.timeoutSeconds),
+    );
   }
 
   Future<http.Response> _execute(

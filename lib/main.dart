@@ -12,9 +12,17 @@ import 'screens/cart_screen.dart';
 import 'screens/checkout_screen.dart';
 import 'screens/local_detail_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/platos_search_screen.dart';
 import 'screens/order_status_screen.dart';
 import 'screens/register_screen.dart';
+import 'screens/activate_account_screen.dart';
+import 'screens/forgot_password_screen.dart';
+import 'screens/reset_password_screen.dart';
+import 'screens/edit_profile_screen.dart';
+import 'screens/change_password_screen.dart';
+import 'screens/confirm_email_change_screen.dart';
 import 'widgets/auth_gate.dart';
+import 'data/models/cliente_profile_model.dart';
 
 void main() {
   runApp(const FoodlyApp());
@@ -69,43 +77,126 @@ class FoodlyApp extends StatelessWidget {
   }
 
   static Route<dynamic>? _generateRoute(RouteSettings settings) {
-    Widget page;
-
     switch (settings.name) {
       case HomeScreen.routeName:
-        page = const HomeScreen();
+        return FoodlyPageRoute(page: const HomeScreen(), settings: settings);
       case LoginScreen.routeName:
-        page = const LoginScreen();
+        return FoodlyPageRoute(
+          page: LoginScreen(
+            successMessage: settings.arguments is String
+                ? settings.arguments as String
+                : null,
+          ),
+          settings: settings,
+        );
       case RegisterScreen.routeName:
-        page = const RegisterScreen();
+        return FoodlyPageRoute(
+          page: const RegisterScreen(),
+          settings: settings,
+        );
+      case ForgotPasswordScreen.routeName:
+        return FoodlyPageRoute(
+          page: const ForgotPasswordScreen(),
+          settings: settings,
+        );
+      case ConfirmEmailChangeScreen.routeName:
+        final emailToken = settings.arguments;
+        return FoodlyPageRoute(
+          page: ConfirmEmailChangeScreen(
+            token: emailToken is String ? emailToken : '',
+          ),
+          settings: settings,
+        );
+      case ResetPasswordScreen.routeName:
+        final token = settings.arguments;
+        return FoodlyPageRoute(
+          page: ResetPasswordScreen(
+            token: token is String ? token : '',
+          ),
+          settings: settings,
+        );
+      case ActivateAccountScreen.routeName:
+        final email = settings.arguments;
+        return FoodlyPageRoute(
+          page: ActivateAccountScreen(
+            initialEmail: email is String ? email : '',
+          ),
+          settings: settings,
+        );
+      case EditProfileScreen.routeName:
+        final profile = settings.arguments;
+        if (profile is! ClienteProfileModel) {
+          return FoodlyPageRoute(
+            page: const Scaffold(
+              body: Center(child: Text('Perfil no disponible.')),
+            ),
+            settings: settings,
+          );
+        }
+        return FoodlyPageRoute(
+          page: AuthGate(child: EditProfileScreen(profile: profile)),
+          settings: settings,
+        );
+      case ChangePasswordScreen.routeName:
+        return FoodlyPageRoute(
+          page: const AuthGate(child: ChangePasswordScreen()),
+          settings: settings,
+        );
       case MainScreen.routeName:
-        page = const AuthGate(child: AppShell());
+        final initialTab = settings.arguments;
+        return FoodlyPageRoute(
+          page: AuthGate(
+            child: AppShell(
+              initialIndex: initialTab is int ? initialTab : 0,
+            ),
+          ),
+          settings: settings,
+        );
       case CartScreen.routeName:
-        page = const AuthGate(child: CartScreen());
+        return FoodlyPageRoute(
+          page: const AuthGate(child: CartScreen()),
+          settings: settings,
+        );
       case CheckoutScreen.routeName:
-        page = const AuthGate(child: CheckoutScreen());
+        return FoodlyPageRoute(
+          page: const AuthGate(child: CheckoutScreen()),
+          settings: settings,
+        );
       case LocalDetailScreen.routeName:
         final localId = settings.arguments;
         if (localId is! int) {
-          page = const Scaffold(
-            body: Center(child: Text('Local no especificado.')),
+          return FoodlyPageRoute(
+            page: const Scaffold(
+              body: Center(child: Text('Local no especificado.')),
+            ),
+            settings: settings,
           );
-        } else {
-          page = AuthGate(child: LocalDetailScreen(localId: localId));
         }
+        return FoodlyPageRoute(
+          page: AuthGate(child: LocalDetailScreen(localId: localId)),
+          settings: settings,
+        );
+      case PlatosSearchScreen.routeName:
+        return FoodlyPageRoute(
+          page: const AuthGate(child: PlatosSearchScreen()),
+          settings: settings,
+        );
       case OrderStatusScreen.routeName:
         final pedido = settings.arguments;
         if (pedido is! PedidoResponseModel) {
-          page = const Scaffold(
-            body: Center(child: Text('Pedido no disponible.')),
+          return FoodlyPageRoute(
+            page: const Scaffold(
+              body: Center(child: Text('Pedido no disponible.')),
+            ),
+            settings: settings,
           );
-        } else {
-          page = AuthGate(child: OrderStatusScreen(pedido: pedido));
         }
+        return FoodlyPageRoute(
+          page: AuthGate(child: OrderStatusScreen(pedido: pedido)),
+          settings: settings,
+        );
       default:
         return null;
     }
-
-    return FoodlyPageRoute(page: page, settings: settings);
   }
 }
