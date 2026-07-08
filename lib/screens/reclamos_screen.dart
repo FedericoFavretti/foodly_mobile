@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/errors/api_exception.dart';
+import '../data/models/pedido_response_model.dart';
 import '../data/models/reclamo_listado_model.dart';
+import '../data/repositories/pedido_repository.dart';
 import '../data/repositories/reclamo_repository.dart';
+import '../domain/reclamo/reclamo_rules.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/foodly_filter_chip.dart';
 import '../widgets/reclamo_card.dart';
+import '../widgets/reclamo_form_dialog.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/wavy_accent.dart';
 
@@ -28,9 +32,11 @@ class ReclamosScreen extends StatefulWidget {
 class ReclamosScreenState extends State<ReclamosScreen>
     with WidgetsBindingObserver {
   final _reclamoRepository = ReclamoRepository();
+  final _pedidoRepository = PedidoRepository();
   List<ReclamoListadoModel> _reclamos = [];
   bool _isLoading = true;
   bool _isRefreshing = false;
+  bool _isCreatingReclamo = false;
   Object? _error;
   String? _filtroEstado;
   _ReclamoSortOption _sort = _ReclamoSortOption.fechaReciente;
@@ -87,6 +93,99 @@ class ReclamosScreenState extends State<ReclamosScreen>
     }
   }
 
+  Future<void> _nuevoReclamo() async {
+    setState(() => _isCreatingReclamo = true);
+    try {
+      final pedidos = await _pedidoRepository.listarHistorial();
+      final elegibles = pedidos
+          .where(
+            (p) => ReclamoRules.puedeReclamar(
+              estado: p.estadoNormalizado,
+              tieneReclamo: p.tieneReclamo,
+            ),
+          )
+          .toList();
+
+      if (!mounted) return;
+
+      if (elegibles.isEmpty) {
+        _showMessage(
+          'No tenés pedidos confirmados o entregados sin reclamo.',
+        );
+        return;
+      }
+
+      final pedido = await showModalBottomSheet<PedidoResponseModel>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Elegí un pedido',
+                  style: FoodlyTheme.serifSection.copyWith(fontSize: 20),
+                ),
+              ),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: elegibles.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final p = elegibles[index];
+                    return ListTile(
+                      title: Text('Pedido Nº ${p.id} — ${p.localNombre}'),
+                      subtitle: Text(
+                        '${p.estadoNormalizado} · \$${p.total.toStringAsFixed(0)}',
+                      ),
+                      onTap: () => Navigator.pop(context, p),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (pedido == null || !mounted) return;
+
+      final form = await showReclamoFormDialog(context, pedido: pedido);
+      if (form == null || !mounted) return;
+
+      await _reclamoRepository.realizarReclamo(
+        pedidoId: pedido.id,
+        motivo: form.motivo,
+        tipoCompensacion: form.tipoCompensacion,
+        montoReintegro: form.montoReintegro,
+      );
+
+      if (!mounted) return;
+      _showMessage('Reclamo registrado correctamente.');
+      await _loadReclamos(silent: true);
+    } on ApiException catch (error) {
+      _showMessage(error.userMessage);
+    } on NetworkException catch (error) {
+      _showMessage(error.userMessage);
+    } catch (_) {
+      _showMessage('No pudimos registrar el reclamo.');
+    } finally {
+      if (mounted) setState(() => _isCreatingReclamo = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   List<ReclamoListadoModel> _applyFilter(List<ReclamoListadoModel> source) {
     var filtered = source;
 
@@ -131,6 +230,22 @@ class ReclamosScreenState extends State<ReclamosScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: FoodlyColors.blanco,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _isCreatingReclamo ? null : _nuevoReclamo,
+        backgroundColor: FoodlyColors.celeste,
+        foregroundColor: FoodlyColors.blanco,
+        icon: _isCreatingReclamo
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: FoodlyColors.blanco,
+                ),
+              )
+            : const Icon(Icons.add),
+        label: const Text('Nuevo reclamo'),
+      ),
       body: Column(
         children: [
           _ReclamosHero(
@@ -215,8 +330,8 @@ class ReclamosScreenState extends State<ReclamosScreen>
         title: 'Sin reclamos',
         subtitle:
             'Cuando realices un reclamo sobre un pedido, lo verás acá con su estado y la respuesta del local.',
-        actionLabel: widget.onExploreLocales != null ? 'Ver mis pedidos' : null,
-        onAction: widget.onExploreLocales,
+        actionLabel: 'Crear reclamo',
+        onAction: _isCreatingReclamo ? null : _nuevoReclamo,
       );
     }
 
@@ -240,7 +355,7 @@ class ReclamosScreenState extends State<ReclamosScreen>
       onRefresh: () => _loadReclamos(silent: true),
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
         itemCount: filtered.length + 1,
         itemBuilder: (context, index) {
           if (index == 0) {

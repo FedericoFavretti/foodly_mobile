@@ -147,7 +147,7 @@ class PedidoRepository {
   Future<void> cancelarPedido(int pedidoId) async {
     try {
       final response = await _api.post(
-        '${ApiConstants.pedidosEndpoint}/$pedidoId/cancelar',
+        ApiConstants.cancelarPedidoEndpoint(pedidoId),
         {},
         requiresAuth: true,
       );

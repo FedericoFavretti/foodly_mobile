@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'core/navigation/foodly_deep_link_listener.dart';
 import 'core/navigation/foodly_page_route.dart';
 import 'theme/foodly_colors.dart';
 import 'theme/foodly_theme.dart';
+import 'domain/cart/cart_notifier.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'data/models/pedido_response_model.dart';
@@ -24,55 +26,66 @@ import 'screens/confirm_email_change_screen.dart';
 import 'widgets/auth_gate.dart';
 import 'data/models/cliente_profile_model.dart';
 
+Future<void> bootstrapFoodlyApp() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await CartNotifier.instance.restore();
+}
+
 void main() {
-  runApp(const FoodlyApp());
+  bootstrapFoodlyApp().then((_) => runApp(const FoodlyApp()));
 }
 
 class FoodlyApp extends StatelessWidget {
   const FoodlyApp({super.key});
 
+  static final _navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Foodly',
-      debugShowCheckedModeBanner: false,
-      theme: FoodlyTheme.light.copyWith(
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: FoodlyColors.blanco,
-          hintStyle: GoogleFonts.nunito(
-            color: FoodlyColors.grisIntermedio,
-            fontSize: 15,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(
-              color: FoodlyColors.negro,
-              width: 1.5,
+    return FoodlyDeepLinkListener(
+      navigatorKey: _navigatorKey,
+      child: MaterialApp(
+        navigatorKey: _navigatorKey,
+        title: 'Foodly',
+        debugShowCheckedModeBanner: false,
+        theme: FoodlyTheme.light.copyWith(
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: FoodlyColors.blanco,
+            hintStyle: GoogleFonts.nunito(
+              color: FoodlyColors.grisIntermedio,
+              fontSize: 15,
             ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(
-              color: FoodlyColors.negro,
-              width: 1.5,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
             ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(
-              color: FoodlyColors.celeste,
-              width: 2,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(
+                color: FoodlyColors.negro,
+                width: 1.5,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(
+                color: FoodlyColors.negro,
+                width: 1.5,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(
+                color: FoodlyColors.celeste,
+                width: 2,
+              ),
             ),
           ),
         ),
+        initialRoute: HomeScreen.routeName,
+        onGenerateRoute: _generateRoute,
       ),
-      initialRoute: HomeScreen.routeName,
-      onGenerateRoute: _generateRoute,
     );
   }
 

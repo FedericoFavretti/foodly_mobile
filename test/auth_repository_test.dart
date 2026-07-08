@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foodly_mobile/core/errors/api_exception.dart';
 import 'package:foodly_mobile/core/network/api_client.dart';
+import 'package:foodly_mobile/data/models/direccion_model.dart';
 import 'package:foodly_mobile/data/repositories/auth_repository.dart';
 import 'package:foodly_mobile/domain/session/session_manager.dart';
 import 'package:http/http.dart' as http;
@@ -253,6 +254,101 @@ void main() {
         ),
       );
       expect(await SessionManager.getToken(), isNull);
+    });
+
+    test('loginWithGoogle envía access token en idToken y esRegistro false', () async {
+      Map<String, dynamic>? capturedBody;
+
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/v1/clientes/google');
+        expect(request.method, 'POST');
+        capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'token': _fakeToken(role: 'ROLE_Cliente'),
+            'id': 99,
+            'email': 'google@foodly.com',
+            'tipo': 'CLIENTE',
+            'nombre': 'Google',
+            'apellido': 'User',
+          }),
+          200,
+        );
+      });
+
+      final repository = AuthRepository(api: ApiClient(client: client));
+      await repository.loginWithGoogle(accessToken: 'oauth-access-token-xyz');
+
+      expect(capturedBody?['idToken'], 'oauth-access-token-xyz');
+      expect(capturedBody?['esRegistro'], isFalse);
+      expect(capturedBody?.containsKey('documento'), isFalse);
+      expect(await SessionManager.getToken(), isNotEmpty);
+      await SessionManager.clearSession();
+    });
+
+    test('loginWithGoogle registro incluye documento y dirección', () async {
+      Map<String, dynamic>? capturedBody;
+
+      final client = MockClient((request) async {
+        capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'token': _fakeToken(role: 'ROLE_Cliente'),
+            'id': 100,
+            'email': 'nuevo@foodly.com',
+            'tipo': 'CLIENTE',
+          }),
+          200,
+        );
+      });
+
+      final repository = AuthRepository(api: ApiClient(client: client));
+      await repository.loginWithGoogle(
+        accessToken: 'google-token',
+        esRegistro: true,
+        documento: '12345678',
+        direccion: const DireccionModel(
+          calle: 'Av. Italia',
+          numero: '100',
+          ciudad: 'Montevideo',
+          codigoPostal: '11000',
+        ),
+      );
+
+      expect(capturedBody?['esRegistro'], isTrue);
+      expect(capturedBody?['documento'], '12345678');
+      expect(capturedBody?['direccion'], isA<Map<String, dynamic>>());
+      final dir = capturedBody?['direccion'] as Map<String, dynamic>;
+      expect(dir['calle'], 'Av. Italia');
+      expect(dir['codigoPostal'], '11000');
+      await SessionManager.clearSession();
+    });
+
+    test('loginWithGoogle error del backend propaga mensaje', () async {
+      final client = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'mensaje':
+                'Ya existe una cuenta registrada con este email. Iniciá sesión en su lugar.',
+          }),
+          400,
+        );
+      });
+
+      final repository = AuthRepository(api: ApiClient(client: client));
+
+      expect(
+        () => repository.loginWithGoogle(accessToken: 'bad-token'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'status', 400)
+              .having(
+                (e) => e.userMessage,
+                'userMessage',
+                contains('Ya existe una cuenta'),
+              ),
+        ),
+      );
     });
   });
 }

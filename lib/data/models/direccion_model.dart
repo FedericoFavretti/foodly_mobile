@@ -27,4 +27,14 @@ class DireccionModel {
     ];
     return partes.join(', ');
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'calle': calle,
+      'numero': numero,
+      'ciudad': ciudad,
+      if (codigoPostal != null && codigoPostal!.trim().isNotEmpty)
+        'codigoPostal': codigoPostal,
+    };
+  }
 }

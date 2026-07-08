@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -16,6 +18,7 @@ import '../widgets/calificar_dialog.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/foodly_filter_chip.dart';
 import '../widgets/pedido_card.dart';
+import '../widgets/reclamo_form_dialog.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/wavy_accent.dart';
 
@@ -24,12 +27,14 @@ class HistorialScreen extends StatefulWidget {
     super.key,
     this.onExploreLocales,
     this.onReclamoCreado,
+    this.isTabActive = false,
   });
 
   static const routeName = '/historial';
 
   final VoidCallback? onExploreLocales;
   final VoidCallback? onReclamoCreado;
+  final bool isTabActive;
 
   @override
   State<HistorialScreen> createState() => HistorialScreenState();
@@ -48,6 +53,9 @@ class HistorialScreenState extends State<HistorialScreen>
   Object? _error;
   String? _filtroEstado;
   PedidoSortOption _sort = PedidoSortOption.fechaReciente;
+  Timer? _pollTimer;
+
+  static const _pollInterval = Duration(seconds: 30);
 
   @override
   void initState() {
@@ -57,7 +65,16 @@ class HistorialScreenState extends State<HistorialScreen>
   }
 
   @override
+  void didUpdateWidget(covariant HistorialScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isTabActive != widget.isTabActive) {
+      _syncPolling();
+    }
+  }
+
+  @override
   void dispose() {
+    _pollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -93,6 +110,7 @@ class HistorialScreenState extends State<HistorialScreen>
         _isRefreshing = false;
       });
       _prefetchCalificaciones(pedidos);
+      _syncPolling();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -105,163 +123,20 @@ class HistorialScreenState extends State<HistorialScreen>
     }
   }
 
+  void _syncPolling() {
+    _pollTimer?.cancel();
+    if (!widget.isTabActive) return;
+    if (!_pedidos.any((p) => p.esActivo)) return;
+
+    _pollTimer = Timer.periodic(_pollInterval, (_) {
+      if (mounted && widget.isTabActive) {
+        refresh(silent: true);
+      }
+    });
+  }
+
   Future<void> _reclamar(PedidoResponseModel pedido) async {
-    final motivo = TextEditingController();
-    final monto = TextEditingController();
-    final compensacion = TextEditingController();
-    var tipoCompensacion = _TipoCompensacionSolicitada.reintegro;
-
-    final result = await showDialog<_ReclamoFormData?>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          final esReintegro =
-              tipoCompensacion == _TipoCompensacionSolicitada.reintegro;
-
-          return AlertDialog(
-            title: const Text('Realizar reclamo'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Pedido Nº ${pedido.id} — ${pedido.localNombre}',
-                    style: GoogleFonts.nunito(
-                      fontSize: 13,
-                      color: FoodlyColors.grisIntermedio,
-                    ),
-                  ),
-                  Text(
-                    'Total del pedido: \$${pedido.total.toStringAsFixed(0)}',
-                    style: GoogleFonts.nunito(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: motivo,
-                    decoration: const InputDecoration(
-                      labelText: 'Motivo del reclamo *',
-                      hintText: 'Describí el problema...',
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Compensación solicitada *',
-                    style: GoogleFonts.nunito(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedButton<_TipoCompensacionSolicitada>(
-                    segments: const [
-                      ButtonSegment(
-                        value: _TipoCompensacionSolicitada.reintegro,
-                        label: Text('Reintegro'),
-                      ),
-                      ButtonSegment(
-                        value: _TipoCompensacionSolicitada.alternativa,
-                        label: Text('Otra'),
-                      ),
-                    ],
-                    selected: {tipoCompensacion},
-                    onSelectionChanged: (selection) {
-                      setDialogState(() {
-                        tipoCompensacion = selection.first;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  if (esReintegro)
-                    TextField(
-                      controller: monto,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Monto de reintegro *',
-                        hintText: 'Máximo \$${pedido.total.toStringAsFixed(0)}',
-                      ),
-                    )
-                  else
-                    TextField(
-                      controller: compensacion,
-                      decoration: const InputDecoration(
-                        labelText: 'Compensación alternativa *',
-                        hintText: 'Ej: reenvío del pedido, descuento...',
-                      ),
-                      maxLines: 2,
-                    ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, null),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () {
-                  if (motivo.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Debe describir el motivo del reclamo antes de enviarlo.',
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-
-                  if (esReintegro) {
-                    final error = ReclamoRules.validarMontoReintegro(
-                      rawMonto: monto.text,
-                      totalPedido: pedido.total,
-                    );
-                    if (error != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(error)),
-                      );
-                      return;
-                    }
-                  } else {
-                    final error = ReclamoRules.validarCompensacionAlternativa(
-                      compensacion.text,
-                    );
-                    if (error != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(error)),
-                      );
-                      return;
-                    }
-                  }
-
-                  Navigator.pop(
-                    context,
-                    _ReclamoFormData(
-                      motivo: motivo.text.trim(),
-                      tipoCompensacion: esReintegro
-                          ? ReclamoRules.tipoReintegro
-                          : compensacion.text.trim(),
-                      montoReintegro: esReintegro
-                          ? double.parse(
-                              monto.text.trim().replaceAll(',', '.'),
-                            )
-                          : null,
-                    ),
-                  );
-                },
-                child: const Text('Enviar reclamo'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+    final result = await showReclamoFormDialog(context, pedido: pedido);
 
     if (result == null || !mounted) return;
 
@@ -776,19 +651,5 @@ class _PedidosHero extends StatelessWidget {
       ),
     );
   }
-}
-
-enum _TipoCompensacionSolicitada { reintegro, alternativa }
-
-class _ReclamoFormData {
-  const _ReclamoFormData({
-    required this.motivo,
-    required this.tipoCompensacion,
-    this.montoReintegro,
-  });
-
-  final String motivo;
-  final String tipoCompensacion;
-  final double? montoReintegro;
 }
 

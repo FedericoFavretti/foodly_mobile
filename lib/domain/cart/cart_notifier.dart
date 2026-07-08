@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/local_model.dart';
 import '../../data/models/plato_model.dart';
 import 'cart_item.dart';
+import 'cart_snapshot.dart';
+import 'cart_storage.dart';
 
 class CartConflictException implements Exception {
   const CartConflictException(this.message);
@@ -13,9 +15,13 @@ class CartConflictException implements Exception {
 }
 
 class CartNotifier extends ChangeNotifier {
-  CartNotifier._();
+  CartNotifier._({CartStorage? storage})
+      : _storage = storage ?? CartStorage();
 
   static final CartNotifier instance = CartNotifier._();
+
+  final CartStorage _storage;
+  bool _persistenceEnabled = true;
 
   int? _localId;
   String? _localNombre;
@@ -34,6 +40,20 @@ class CartNotifier extends ChangeNotifier {
 
   double get estimatedTotal =>
       _items.fold<double>(0, (sum, item) => sum + item.subtotal);
+
+  /// Restaura el carrito desde SharedPreferences (llamar al iniciar la app).
+  Future<void> restore() async {
+    final snapshot = await _storage.load();
+    if (snapshot == null) return;
+
+    _localId = snapshot.localId;
+    _localNombre = snapshot.localNombre;
+    _localAbierto = snapshot.localAbierto;
+    _items
+      ..clear()
+      ..addAll(snapshot.items);
+    notifyListeners();
+  }
 
   void addPlato({required PlatoModel plato, required LocalModel local}) {
     if (!local.estaAbierto) {
@@ -63,6 +83,7 @@ class CartNotifier extends ChangeNotifier {
       _items.add(CartItem(plato: plato, cantidad: 1));
     }
     notifyListeners();
+    _persist();
   }
 
   void updateQuantity(int platoId, int cantidad) {
@@ -74,6 +95,7 @@ class CartNotifier extends ChangeNotifier {
     if (index < 0) return;
     _items[index] = _items[index].copyWith(cantidad: cantidad);
     notifyListeners();
+    _persist();
   }
 
   void removePlato(int platoId) {
@@ -84,6 +106,7 @@ class CartNotifier extends ChangeNotifier {
       _localAbierto = true;
     }
     notifyListeners();
+    _persist();
   }
 
   void clear() {
@@ -92,6 +115,7 @@ class CartNotifier extends ChangeNotifier {
     _localNombre = null;
     _localAbierto = true;
     notifyListeners();
+    _clearStorage();
   }
 
   void replaceLocalAndAdd({
@@ -102,8 +126,33 @@ class CartNotifier extends ChangeNotifier {
     addPlato(plato: plato, local: local);
   }
 
+  Future<void> _persist() async {
+    if (!_persistenceEnabled || isEmpty || _localId == null) {
+      if (isEmpty) await _clearStorage();
+      return;
+    }
+
+    await _storage.save(
+      CartSnapshot(
+        localId: _localId!,
+        localNombre: _localNombre ?? '',
+        localAbierto: _localAbierto,
+        items: List<CartItem>.from(_items),
+      ),
+    );
+  }
+
+  Future<void> _clearStorage() async {
+    if (!_persistenceEnabled) return;
+    await _storage.clear();
+  }
+
   @visibleForTesting
-  void resetForTest() {
-    clear();
+  void resetForTest({bool enablePersistence = false}) {
+    _persistenceEnabled = enablePersistence;
+    _items.clear();
+    _localId = null;
+    _localNombre = null;
+    _localAbierto = true;
   }
 }

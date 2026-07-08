@@ -105,7 +105,7 @@ class ReclamoRepository {
   Future<ReclamoListadoModel?> obtenerReclamoDePedido(int pedidoId) async {
     try {
       final response = await _api.get(
-        '${ApiConstants.miReclamoEndpoint}/$pedidoId',
+        ApiConstants.miReclamoPedidoEndpoint(pedidoId),
         requiresAuth: true,
       );
 

@@ -10,6 +10,7 @@ import '../data/repositories/pedido_repository.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../domain/cart/cart_notifier.dart';
+import '../domain/cart/cart_storage.dart';
 import '../domain/pedido/medio_pago.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
@@ -128,6 +129,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             userMessage: 'No pudimos abrir Mercado Pago en tu dispositivo.',
           );
         }
+        await CartStorage().savePendingMpPedidoId(pedido.id);
       }
 
       cart.clear();

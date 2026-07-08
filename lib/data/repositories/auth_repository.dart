@@ -4,9 +4,11 @@ import '../../core/auth/jwt_decoder.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_client.dart';
+import '../../domain/cart/cart_notifier.dart';
 import '../../domain/session/session_manager.dart';
 import '../models/auth_response.dart';
 import '../models/cliente_profile_model.dart';
+import '../models/direccion_model.dart';
 
 class AuthRepository {
   AuthRepository({ApiClient? api}) : _api = api ?? ApiClient();
@@ -21,6 +23,9 @@ class AuthRepository {
 
   static const notClienteMessage =
       'Esta aplicación es exclusiva para clientes.';
+
+  static const googleAuthFailedMessage =
+      'No fue posible autenticar con Google. Intentalo más tarde.';
 
   Future<AuthResponse> login({
     required String email,
@@ -38,32 +43,7 @@ class AuthRepository {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final authResponse = AuthResponse.fromJson(data);
-        final role = JwtDecoder.role(authResponse.token);
-        if (!JwtDecoder.isClienteRole(role)) {
-          await SessionManager.clearSession();
-          throw const ApiException(
-            statusCode: 403,
-            userMessage: notClienteMessage,
-          );
-        }
-        await SessionManager.saveToken(authResponse.token);
-
-        if (authResponse.usuario != null) {
-          final usuario = authResponse.usuario!;
-          await SessionManager.saveUsuarioInfoJson(
-            jsonEncode(usuario.toJson()),
-          );
-        }
-
-        final profileFromLogin = ClienteProfileModel.tryFromLoginJson(data);
-        if (profileFromLogin != null) {
-          await SessionManager.saveProfileJson(
-            jsonEncode(profileFromLogin.toJson()),
-          );
-        }
-        
-        return authResponse;
+        return _persistAuthResponse(data);
       }
 
       if (response.statusCode == 401 || response.statusCode == 404) {
@@ -93,11 +73,94 @@ class AuthRepository {
     }
   }
 
+  /// Login o registro con Google vía `POST /clientes/google`.
+  ///
+  /// [accessToken] se envía en el campo `idToken` (mismo contrato que el web).
+  Future<AuthResponse> loginWithGoogle({
+    required String accessToken,
+    bool esRegistro = false,
+    String? documento,
+    DireccionModel? direccion,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'idToken': accessToken.trim(),
+        'esRegistro': esRegistro,
+      };
+
+      if (documento != null && documento.trim().isNotEmpty) {
+        body['documento'] = documento.trim();
+      }
+
+      if (direccion != null) {
+        body['direccion'] = direccion.toJson();
+      }
+
+      final response = await _api.post(
+        ApiConstants.googleAuthEndpoint,
+        body,
+        requiresAuth: false,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return _persistAuthResponse(data);
+      }
+
+      throw ApiException(
+        statusCode: response.statusCode,
+        userMessage:
+            _mapErrorMessage(response.body) ?? googleAuthFailedMessage,
+        debugInfo: response.body,
+      );
+    } on ApiException {
+      rethrow;
+    } on SessionExpiredException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (error) {
+      throw ApiException(
+        statusCode: 0,
+        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
+        debugInfo: error.toString(),
+      );
+    }
+  }
+
+  Future<AuthResponse> _persistAuthResponse(Map<String, dynamic> data) async {
+    final authResponse = AuthResponse.fromJson(data);
+    final role = JwtDecoder.role(authResponse.token);
+    if (!JwtDecoder.isClienteRole(role)) {
+      await SessionManager.clearSession();
+      throw const ApiException(
+        statusCode: 403,
+        userMessage: notClienteMessage,
+      );
+    }
+    await SessionManager.saveToken(authResponse.token);
+
+    if (authResponse.usuario != null) {
+      final usuario = authResponse.usuario!;
+      await SessionManager.saveUsuarioInfoJson(
+        jsonEncode(usuario.toJson()),
+      );
+    }
+
+    final profileFromLogin = ClienteProfileModel.tryFromLoginJson(data);
+    if (profileFromLogin != null) {
+      await SessionManager.saveProfileJson(
+        jsonEncode(profileFromLogin.toJson()),
+      );
+    }
+
+    return authResponse;
+  }
+
   /// Cierra la sesión del usuario.
   /// Intenta notificar al backend, pero siempre limpia la sesión local.
   Future<void> logout() async {
     try {
-      // Intentar notificar al backend (best effort)
       await _api.post(
         ApiConstants.logoutEndpoint,
         {},
@@ -106,8 +169,8 @@ class AuthRepository {
     } catch (_) {
       // Ignorar errores del backend - la limpieza local es lo crítico
     } finally {
-      // Siempre limpiar la sesión local
       await SessionManager.clearSession();
+      CartNotifier.instance.clear();
     }
   }
 

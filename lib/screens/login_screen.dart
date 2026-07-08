@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/auth/biometric_service.dart';
+import '../core/auth/google_sign_in_service.dart';
+import '../core/auth/post_login_helper.dart';
 import '../core/errors/api_exception.dart';
 import '../core/validators/form_validators.dart';
 import '../data/repositories/auth_repository.dart';
@@ -10,6 +12,7 @@ import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/foodly_button.dart';
+import '../widgets/google_icon.dart';
 import '../widgets/password_field.dart';
 import '../widgets/wavy_accent.dart';
 import 'activate_account_screen.dart';
@@ -17,11 +20,16 @@ import 'forgot_password_screen.dart';
 import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.successMessage});
+  const LoginScreen({
+    super.key,
+    this.successMessage,
+    this.googleSignInService,
+  });
 
   static const routeName = '/login';
 
   final String? successMessage;
+  final GoogleSignInService? googleSignInService;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -33,8 +41,12 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authRepository = AuthRepository();
   final _biometricService = LocalAuthBiometricService();
+  late final GoogleSignInService _googleSignInService =
+      widget.googleSignInService ?? PlatformGoogleSignInService();
   bool _isLoading = false;
   bool _showBiometricButton = false;
+
+  bool get _googleConfigured => _googleSignInService.isConfigured;
 
   @override
   void initState() {
@@ -108,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       if (!mounted) return;
-      await _offerBiometricIfNeeded();
+      await offerBiometricIfNeeded(context, _biometricService);
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, MainScreen.routeName);
     } on ApiException catch (error) {
@@ -120,36 +132,35 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Tras un login exitoso, ofrece activar biometría si nunca se preguntó.
-  Future<void> _offerBiometricIfNeeded() async {
-    final alreadyDecided = await SessionManager.getBiometricEnabled();
-    if (alreadyDecided != null) return;
+  Future<void> _loginWithGoogle() async {
+    if (!_googleConfigured) {
+      _showMessage(
+        'Google Sign-In no está configurado. Definí GOOGLE_SERVER_CLIENT_ID al compilar.',
+      );
+      return;
+    }
 
-    final available = await _biometricService.isAvailable();
-    if (!available || !mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final tokens = await _googleSignInService.signIn();
+      if (tokens == null) return;
 
-    final accepted = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Acceso rápido'),
-        content: const Text(
-          '¿Querés usar tu huella digital o Face ID para ingresar más rápido la próxima vez?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Ahora no'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Activar'),
-          ),
-        ],
-      ),
-    );
-
-    await SessionManager.setBiometricEnabled(accepted ?? false);
+      await _authRepository.loginWithGoogle(
+        accessToken: tokens.accessToken,
+      );
+      if (!mounted) return;
+      await offerBiometricIfNeeded(context, _biometricService);
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, MainScreen.routeName);
+    } on ApiException catch (error) {
+      _showMessage(error.userMessage);
+    } on NetworkException catch (error) {
+      _showMessage(error.userMessage);
+    } catch (_) {
+      _showMessage('No se pudo autenticar con Google.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _showMessage(String message) {
@@ -205,6 +216,35 @@ class _LoginScreenState extends State<LoginScreen> {
               style: FoodlyTheme.serifSection,
             ),
             const SizedBox(height: 24),
+            FoodlyButton(
+              label: 'CONTINUAR CON GOOGLE',
+              variant: FoodlyButtonVariant.outline,
+              leading: const GoogleIcon(),
+              onPressed: _isLoading || !_googleConfigured ? null : _loginWithGoogle,
+            ),
+            if (!_googleConfigured) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Requiere GOOGLE_SERVER_CLIENT_ID (--dart-define)',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 12,
+                  color: FoodlyColors.grisIntermedio,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                Expanded(child: SizedBox(height: 12, child: WavyAccent())),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('o'),
+                ),
+                Expanded(child: SizedBox(height: 12, child: WavyAccent())),
+              ],
+            ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,

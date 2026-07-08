@@ -28,6 +28,7 @@ abstract final class ApiConstants {
 
   // ── Cliente ───────────────────────────────────────────────────────────────
   static const registroEndpoint = '/api/v1/clientes/registro';
+  static const googleAuthEndpoint = '/api/v1/clientes/google';
   static const listarLocalesEndpoint = '/api/v1/clientes/listar_locales';
   static const busquedaPlatosEndpoint = '/api/v1/clientes/busqueda';
 
@@ -40,9 +41,21 @@ abstract final class ApiConstants {
   static const pedidosEndpoint = '/api/v1/pedidos';
   static const historialPedidosEndpoint = '/api/v1/pedidos/mi-historial';
 
+  static String cancelarPedidoEndpoint(int pedidoId) =>
+      '$pedidosEndpoint/$pedidoId/cancelar';
+
+  static String pedidoClienteEndpoint(int clienteId) =>
+      '$pedidosEndpoint/clientes/$clienteId';
+
   // ── Reclamos / calificaciones ─────────────────────────────────────────────
-  static const reclamoEndpoint = '/api/v1/reclamos/realizar_reclamo';
-  static const miReclamoEndpoint = '/api/v1/reclamos/mi-reclamo';
+  static const reclamoBaseEndpoint = '/api/v1/reclamos';
+  static const reclamoEndpoint = '$reclamoBaseEndpoint/realizar_reclamo';
+
+  static String miReclamoPedidoEndpoint(int pedidoId) =>
+      '$reclamoBaseEndpoint/mi-reclamo/$pedidoId';
+
+  /// Alias legado usado en repositorio.
+  static const miReclamoEndpoint = '$reclamoBaseEndpoint/mi-reclamo';
   static const calificacionesBaseEndpoint = '/api/v1/calificaciones';
   static const calificacionEndpoint = '/api/v1/calificaciones/calificar';
 

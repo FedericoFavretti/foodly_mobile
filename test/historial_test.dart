@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foodly_mobile/core/constants/api_constants.dart';
 import 'package:foodly_mobile/core/errors/api_exception.dart';
 import 'package:foodly_mobile/core/network/api_client.dart';
 import 'package:foodly_mobile/data/repositories/pedido_repository.dart';
@@ -81,7 +82,7 @@ void main() {
   group('PedidoRepository.cancelarPedido', () {
     test('200 completa sin error', () async {
       final client = MockClient((request) async {
-        expect(request.url.path, '/api/v1/pedidos/42/cancelar');
+        expect(request.url.path, ApiConstants.cancelarPedidoEndpoint(42));
         expect(request.method, 'POST');
         return http.Response('', 200);
       });

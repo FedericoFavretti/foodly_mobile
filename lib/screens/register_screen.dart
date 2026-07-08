@@ -4,8 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/auth/biometric_service.dart';
+import '../core/auth/google_sign_in_service.dart';
+import '../core/auth/post_login_helper.dart';
 import '../core/errors/api_exception.dart';
 import '../core/validators/form_validators.dart';
+import '../data/models/direccion_model.dart';
+import '../data/repositories/auth_repository.dart';
 import '../data/repositories/cliente_repository.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
@@ -14,6 +19,7 @@ import '../widgets/foodly_button.dart';
 import '../widgets/google_icon.dart';
 import '../widgets/password_field.dart';
 import 'activate_account_screen.dart';
+import 'main_screen.dart';
 import '../widgets/wavy_accent.dart';
 
 const _passwordHint = [
@@ -23,9 +29,14 @@ const _passwordHint = [
 ];
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({
+    super.key,
+    this.googleSignInService,
+  });
 
   static const routeName = '/register';
+
+  final GoogleSignInService? googleSignInService;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -44,11 +55,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _clienteRepository = ClienteRepository();
+  final _authRepository = AuthRepository();
+  final _biometricService = LocalAuthBiometricService();
+  late final GoogleSignInService _googleSignInService =
+      widget.googleSignInService ?? PlatformGoogleSignInService();
   final _imagePicker = ImagePicker();
 
   Uint8List? _fotoBytes;
   String? _fotoFilename;
   bool _isLoading = false;
+
+  bool get _googleConfigured => _googleSignInService.isConfigured;
 
   @override
   void dispose() {
@@ -77,6 +94,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _fotoBytes = bytes;
       _fotoFilename = image.name;
     });
+  }
+
+  bool _validateGoogleRegistrationFields() {
+    final checks = <String? Function()>[
+      () => FormValidators.cedula(_documentoController.text),
+      () => FormValidators.requiredField(_calleController.text, 'la calle'),
+      () => FormValidators.requiredField(_numeroController.text, 'el número'),
+      () => FormValidators.requiredField(_ciudadController.text, 'la ciudad'),
+    ];
+
+    for (final check in checks) {
+      final error = check();
+      if (error != null) {
+        _showMessage(error);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> _registerWithGoogle() async {
+    if (!_googleConfigured) {
+      _showMessage(
+        'Google Sign-In no está configurado. Definí GOOGLE_SERVER_CLIENT_ID al compilar.',
+      );
+      return;
+    }
+    if (!_validateGoogleRegistrationFields()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final tokens = await _googleSignInService.signIn();
+      if (tokens == null) return;
+
+      final direccion = DireccionModel(
+        calle: _calleController.text.trim(),
+        numero: _numeroController.text.trim(),
+        ciudad: _ciudadController.text.trim(),
+        codigoPostal: _codigoPostalController.text.trim().isEmpty
+            ? null
+            : _codigoPostalController.text.trim(),
+      );
+
+      await _authRepository.loginWithGoogle(
+        accessToken: tokens.accessToken,
+        esRegistro: true,
+        documento: _documentoController.text.trim(),
+        direccion: direccion,
+      );
+      if (!mounted) return;
+      await offerBiometricIfNeeded(context, _biometricService);
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, MainScreen.routeName);
+    } on ApiException catch (error) {
+      _showMessage(error.userMessage);
+    } on NetworkException catch (error) {
+      _showMessage(error.userMessage);
+    } catch (_) {
+      _showMessage('No se pudo completar el registro con Google.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -173,11 +252,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'CONTINUAR CON GOOGLE',
                 variant: FoodlyButtonVariant.outline,
                 leading: const GoogleIcon(),
-                onPressed: null,
+                onPressed:
+                    _isLoading || !_googleConfigured ? null : _registerWithGoogle,
               ),
+              if (!_googleConfigured) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Requiere GOOGLE_SERVER_CLIENT_ID (--dart-define)',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    color: FoodlyColors.grisIntermedio,
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
-                'Próximamente',
+                'Completá documento y dirección antes de registrarte con Google',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.nunito(
                   fontSize: 12,
