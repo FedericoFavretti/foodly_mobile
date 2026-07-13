@@ -52,6 +52,9 @@ abstract final class ApiConstants {
   static String cancelarPedidoEndpoint(int pedidoId) =>
       '$pedidosEndpoint/$pedidoId/cancelar';
 
+  static String reintentarPagoEndpoint(int pedidoId) =>
+      '$pedidosEndpoint/$pedidoId/reintentar-pago';
+
   static String pedidoClienteEndpoint(int clienteId) =>
       '$pedidosEndpoint/clientes/$clienteId';
 

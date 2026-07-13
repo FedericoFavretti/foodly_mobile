@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Foodly Mobile — dev (Railway test)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-hc2bh6e5fcomfag97b0ho4e701p2mnuk.apps.googleusercontent.com",
+        "--dart-define=API_BASE_URL=https://proyectoequipo32026-test.up.railway.app"
+      ]
+    },
+    {
+      "name": "Foodly Mobile — dev (localhost)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-hc2bh6e5fcomfag97b0ho4e701p2mnuk.apps.googleusercontent.com",
+        "--dart-define=API_BASE_URL=http://10.0.2.2:8080"
+      ]
+    },
+    {
+      "name": "Foodly Mobile — mock catalog",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-hc2bh6e5fcomfag97b0ho4e701p2mnuk.apps.googleusercontent.com",
+        "--dart-define=API_BASE_URL=https://proyectoequipo32026-test.up.railway.app",
+        "--dart-define=USE_MOCK_CATALOG=true"
+      ]
+    }
+  ]
+}

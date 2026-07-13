@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/errors/api_exception.dart';
 import '../data/models/mi_calificacion_local_model.dart';
@@ -296,6 +297,45 @@ class HistorialScreenState extends State<HistorialScreen>
     }
   }
 
+  Future<void> _reintentarPago(PedidoResponseModel pedido) async {
+    try {
+      final pedidoActualizado =
+          await _pedidoRepository.reintentarPago(pedido.id);
+
+      if (!mounted) return;
+
+      final initPoint = pedidoActualizado.mpInitPoint?.trim();
+      if (initPoint == null || initPoint.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No pudimos generar el link de pago. Intentalo más tarde.'),
+          ),
+        );
+        return;
+      }
+
+      // Actualizar el pedido en la lista local con los datos frescos.
+      setState(() {
+        _pedidos = _pedidos.map((p) => p.id == pedido.id ? pedidoActualizado : p).toList();
+      });
+
+      final uri = Uri.tryParse(initPoint);
+      if (uri != null) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.userMessage)),
+      );
+    } on NetworkException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.userMessage)),
+      );
+    }
+  }
+
   Future<void> _cancelar(PedidoResponseModel pedido) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -550,6 +590,7 @@ class HistorialScreenState extends State<HistorialScreen>
             reclamoEnviado: p.tieneReclamo,
             onCalificar: _puedeCalificar(p) ? () => _calificar(p) : null,
             calificarLabel: _puedeCalificar(p) ? _labelCalificar(p) : null,
+            onReintentarPago: p.permiteReintentarPago ? () => _reintentarPago(p) : null,
           );
         },
       ),

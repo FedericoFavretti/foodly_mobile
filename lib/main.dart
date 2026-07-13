@@ -18,6 +18,8 @@ import 'screens/platos_search_screen.dart';
 import 'screens/order_status_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/activate_account_screen.dart';
+import 'screens/google_registration_completion_screen.dart';
+import 'data/repositories/auth_repository.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/edit_profile_screen.dart';
@@ -105,6 +107,20 @@ class FoodlyApp extends StatelessWidget {
       case RegisterScreen.routeName:
         return FoodlyPageRoute(
           page: const RegisterScreen(),
+          settings: settings,
+        );
+      case GoogleRegistrationCompletionScreen.routeName:
+        final pendiente = settings.arguments;
+        if (pendiente is! GoogleRegistroPendienteResponse) {
+          return FoodlyPageRoute(
+            page: const Scaffold(
+              body: Center(child: Text('Datos de registro no disponibles.')),
+            ),
+            settings: settings,
+          );
+        }
+        return FoodlyPageRoute(
+          page: GoogleRegistrationCompletionScreen(pendiente: pendiente),
           settings: settings,
         );
       case ForgotPasswordScreen.routeName:

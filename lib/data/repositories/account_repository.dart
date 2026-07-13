@@ -206,6 +206,64 @@ class AccountRepository {
 
 
 
+  Future<void> reenviarActivacion(String email) async {
+
+    try {
+
+      final response = await _api.post(
+
+        ApiConstants.reenviarActivacionEndpoint,
+
+        {'email': email.trim()},
+
+        requiresAuth: false,
+
+      );
+
+
+
+      if (response.statusCode == 200) return;
+
+
+
+      throw ApiException(
+
+        statusCode: response.statusCode,
+
+        userMessage: _mapErrorMessage(response.body) ??
+
+            'No pudimos reenviar el correo. Intentalo más tarde.',
+
+        debugInfo: response.body,
+
+      );
+
+    } on ApiException {
+
+      rethrow;
+
+    } on NetworkException {
+
+      rethrow;
+
+    } catch (error) {
+
+      throw ApiException(
+
+        statusCode: 0,
+
+        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
+
+        debugInfo: error.toString(),
+
+      );
+
+    }
+
+  }
+
+
+
   Future<void> activarCuenta(String email) async {
 
     try {

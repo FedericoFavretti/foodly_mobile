@@ -40,7 +40,7 @@ class AuthLayout extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: Image.asset(
-                  'assets/images/login-register.png',
+                  'assets/images/auth-delivery-panel.png',
                   height: 180,
                   fit: BoxFit.cover,
                 ),
