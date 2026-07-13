@@ -10,6 +10,8 @@ abstract final class ApiConstants {
   static const loginEndpoint = '/api/v1/usuarios/login';
   static const logoutEndpoint = '/api/v1/usuarios/logout';
   static const activarCuentaEndpoint = '/api/v1/usuarios/activar';
+  static const reenviarActivacionEndpoint =
+      '/api/v1/usuarios/reenviar-activacion';
   static const recuperarContraCorreoEndpoint =
       '/api/v1/usuarios/recuperar_contra_correo';
   static const recuperarContraEndpoint = '/api/v1/usuarios/recuperar';
@@ -29,8 +31,14 @@ abstract final class ApiConstants {
   // ── Cliente ───────────────────────────────────────────────────────────────
   static const registroEndpoint = '/api/v1/clientes/registro';
   static const googleAuthEndpoint = '/api/v1/clientes/google';
+  static const googleIniciarRegistroEndpoint =
+      '/api/v1/clientes/google/registro/iniciar';
+  static const googleCompletarRegistroEndpoint =
+      '/api/v1/clientes/google/registro/completar';
   static const listarLocalesEndpoint = '/api/v1/clientes/listar_locales';
   static const busquedaPlatosEndpoint = '/api/v1/clientes/busqueda';
+  static const localesPopularesEndpoint = '/api/v1/clientes/locales-populares';
+  static const platosMasPedidosEndpoint = '/api/v1/clientes/platos-mas-pedidos';
 
   /// Fallback si `/clientes/busqueda` falla (p. ej. error al procesar promos).
   /// Requiere rol Local en backend; si responde 403 se ignora.

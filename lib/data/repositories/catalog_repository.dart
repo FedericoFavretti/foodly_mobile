@@ -100,27 +100,31 @@ class ApiCatalogDataSource implements CatalogDataSource {
 
   @override
   Future<List<LocalModel>> listarLocales({LocalListFilter? filter}) async {
-    final body = filter?.toRequestBody() ?? const <String, dynamic>{};
-    final response = await _api.post(
+    final queryParams = filter?.toQueryParams();
+    final response = await _api.get(
       ApiConstants.listarLocalesEndpoint,
-      body,
       requiresAuth: true,
+      queryParameters: queryParams?.isEmpty == true ? null : queryParams,
     );
 
     if (response.statusCode == 200) {
-      if (response.body.isEmpty || response.body == 'null') {
-        return [];
-      }
+      if (response.body.isEmpty || response.body == 'null') return [];
       final decoded = jsonDecode(response.body);
       if (decoded == null) return [];
-      if (decoded is! List) {
+
+      // El backend devuelve DtPagina<DtLocalBusquedaResponse>
+      final rawList = decoded is Map<String, dynamic>
+          ? decoded['contenido']
+          : decoded;
+
+      if (rawList is! List) {
         throw ApiException(
           statusCode: 200,
           userMessage: 'Respuesta de locales inválida.',
           debugInfo: response.body,
         );
       }
-      return decoded
+      return rawList
           .whereType<Map<String, dynamic>>()
           .map(LocalModel.fromJson)
           .toList();
@@ -135,12 +139,11 @@ class ApiCatalogDataSource implements CatalogDataSource {
 
   @override
   Future<List<PlatoModel>> listarPlatosDeLocal(int localId) async {
-    final response = await _api.post(
+    final filter = BusquedaPlatosFilter();
+    final response = await _api.get(
       ApiConstants.busquedaPlatosEndpoint,
-      {
-        'dtLocal': {'id': localId},
-      },
       requiresAuth: true,
+      queryParameters: filter.toQueryParams(localId: localId),
     );
 
     if (response.statusCode == 200) {
@@ -240,10 +243,10 @@ class ApiCatalogDataSource implements CatalogDataSource {
   Future<List<PlatoBusquedaItem>> buscarPlatos(
     BusquedaPlatosFilter filter,
   ) async {
-    final response = await _api.post(
+    final response = await _api.get(
       ApiConstants.busquedaPlatosEndpoint,
-      filter.toRequestBody(),
       requiresAuth: true,
+      queryParameters: filter.toQueryParams(),
     );
 
     if (response.statusCode == 200) {

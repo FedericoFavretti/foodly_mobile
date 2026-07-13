@@ -117,8 +117,14 @@ class PedidoRepository {
         if (response.body.isEmpty || response.body == 'null') return [];
         final decoded = jsonDecode(response.body);
         if (decoded == null) return [];
-        if (decoded is! List) return [];
-        return decoded
+
+        // El backend devuelve DtPagina<DtPedidoListadoResponse>
+        final rawList = decoded is Map<String, dynamic>
+            ? decoded['contenido']
+            : decoded;
+
+        if (rawList is! List) return [];
+        return rawList
             .whereType<Map<String, dynamic>>()
             .map(PedidoResponseModel.fromJson)
             .toList();

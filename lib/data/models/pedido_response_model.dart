@@ -16,6 +16,10 @@ class PedidoResponseModel {
     this.medioDePago,
     this.mpInitPoint,
     this.tiempoEntregaMinutos,
+    this.estadoVisible,
+    this.pagoPendiente = false,
+    this.permiteReintentarPago = false,
+    this.cantidadItems,
   });
 
   final int id;
@@ -31,6 +35,14 @@ class PedidoResponseModel {
   final String? medioDePago;
   final String? mpInitPoint;
   final int? tiempoEntregaMinutos;
+  /// Estado legible para mostrar al usuario (e.g. "Pago pendiente").
+  final String? estadoVisible;
+  /// true cuando el pago MP fue iniciado pero aún no confirmado.
+  final bool pagoPendiente;
+  /// true cuando el usuario puede reintentar el pago MP.
+  final bool permiteReintentarPago;
+  /// Cantidad total de ítems del pedido (disponible en historial).
+  final int? cantidadItems;
 
   bool get tieneTiempoEntrega =>
       tiempoEntregaMinutos != null && tiempoEntregaMinutos! > 0;
@@ -41,11 +53,14 @@ class PedidoResponseModel {
   bool get requierePagoMercadoPago =>
       medioDePago?.toLowerCase() == 'mercadopago';
 
-  bool get puedeCompletarPagoMercadoPago =>
-      estadoNormalizado.toLowerCase() == 'pendiente' &&
-      requierePagoMercadoPago &&
-      mpInitPoint != null &&
-      mpInitPoint!.trim().isNotEmpty;
+  bool get puedeCompletarPagoMercadoPago {
+    if (mpInitPoint == null || mpInitPoint!.trim().isEmpty) return false;
+    // Campos explícitos del backend (historial paginado / reintentar-pago).
+    if (permiteReintentarPago || pagoPendiente) return true;
+    // Fallback para pedidos recién creados donde los flags aún no llegan.
+    return estadoNormalizado.toLowerCase() == 'pendiente' &&
+        requierePagoMercadoPago;
+  }
 
   bool get esActivo {
     final normalized = estadoNormalizado.toLowerCase();
@@ -117,6 +132,10 @@ class PedidoResponseModel {
       mpInitPoint: json['mpInitPoint'] as String?,
       tiempoEntregaMinutos:
           PedidoDeliveryTime.parseMinutes(json['tiempoEstEntrega']),
+      estadoVisible: json['estadoVisible'] as String?,
+      pagoPendiente: json['pagoPendiente'] == true,
+      permiteReintentarPago: json['permiteReintentarPago'] == true,
+      cantidadItems: (json['cantidadItems'] as num?)?.toInt(),
     );
   }
 
@@ -156,6 +175,10 @@ class PedidoResponseModel {
     String? medioDePago,
     String? mpInitPoint,
     int? tiempoEntregaMinutos,
+    String? estadoVisible,
+    bool? pagoPendiente,
+    bool? permiteReintentarPago,
+    int? cantidadItems,
   }) {
     return PedidoResponseModel(
       id: id ?? this.id,
@@ -170,8 +193,12 @@ class PedidoResponseModel {
       tieneReclamo: tieneReclamo ?? this.tieneReclamo,
       medioDePago: medioDePago ?? this.medioDePago,
       mpInitPoint: mpInitPoint ?? this.mpInitPoint,
-      tiempoEntregaMinutos:
-          tiempoEntregaMinutos ?? this.tiempoEntregaMinutos,
+      tiempoEntregaMinutos: tiempoEntregaMinutos ?? this.tiempoEntregaMinutos,
+      estadoVisible: estadoVisible ?? this.estadoVisible,
+      pagoPendiente: pagoPendiente ?? this.pagoPendiente,
+      permiteReintentarPago:
+          permiteReintentarPago ?? this.permiteReintentarPago,
+      cantidadItems: cantidadItems ?? this.cantidadItems,
     );
   }
 }

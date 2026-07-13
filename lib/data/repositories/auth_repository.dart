@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+
 import '../../core/auth/jwt_decoder.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
@@ -9,6 +12,33 @@ import '../../domain/session/session_manager.dart';
 import '../models/auth_response.dart';
 import '../models/cliente_profile_model.dart';
 import '../models/direccion_model.dart';
+
+/// Respuesta del paso 1 del registro Google (iniciar).
+class GoogleRegistroPendienteResponse {
+  const GoogleRegistroPendienteResponse({
+    required this.tokenRegistro,
+    required this.email,
+    this.nombre,
+    this.apellido,
+    this.foto,
+  });
+
+  final String tokenRegistro;
+  final String email;
+  final String? nombre;
+  final String? apellido;
+  final String? foto;
+
+  factory GoogleRegistroPendienteResponse.fromJson(Map<String, dynamic> json) {
+    return GoogleRegistroPendienteResponse(
+      tokenRegistro: json['tokenRegistro'] as String,
+      email: json['email'] as String,
+      nombre: json['nombre'] as String?,
+      apellido: json['apellido'] as String?,
+      foto: json['foto'] as String?,
+    );
+  }
+}
 
 class AuthRepository {
   AuthRepository({ApiClient? api}) : _api = api ?? ApiClient();
@@ -99,6 +129,117 @@ class AuthRepository {
       final response = await _api.post(
         ApiConstants.googleAuthEndpoint,
         body,
+        requiresAuth: false,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return _persistAuthResponse(data);
+      }
+
+      throw ApiException(
+        statusCode: response.statusCode,
+        userMessage:
+            _mapErrorMessage(response.body) ?? googleAuthFailedMessage,
+        debugInfo: response.body,
+      );
+    } on ApiException {
+      rethrow;
+    } on SessionExpiredException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (error) {
+      throw ApiException(
+        statusCode: 0,
+        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
+        debugInfo: error.toString(),
+      );
+    }
+  }
+
+  /// Paso 1 del registro Google: verifica el idToken y devuelve tokenRegistro + datos previos.
+  Future<GoogleRegistroPendienteResponse> iniciarRegistroGoogle({
+    required String idToken,
+  }) async {
+    try {
+      final response = await _api.post(
+        ApiConstants.googleIniciarRegistroEndpoint,
+        {
+          'idToken': idToken.trim(),
+          'direccion': null,
+          'documento': null,
+          'esRegistro': true,
+        },
+        requiresAuth: false,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return GoogleRegistroPendienteResponse.fromJson(data);
+      }
+
+      throw ApiException(
+        statusCode: response.statusCode,
+        userMessage:
+            _mapErrorMessage(response.body) ?? googleAuthFailedMessage,
+        debugInfo: response.body,
+      );
+    } on ApiException {
+      rethrow;
+    } on SessionExpiredException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (error) {
+      throw ApiException(
+        statusCode: 0,
+        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
+        debugInfo: error.toString(),
+      );
+    }
+  }
+
+  /// Paso 2 del registro Google: envía datos complementarios (documento, dirección,
+  /// términos) y opcionalmente una foto. Devuelve el usuario autenticado.
+  Future<AuthResponse> completarRegistroGoogle({
+    required String tokenRegistro,
+    required String documento,
+    required DireccionModel direccion,
+    bool aceptaTerminos = true,
+    List<int>? fotoBytes,
+    String? fotoFilename,
+  }) async {
+    try {
+      final datosJson = jsonEncode({
+        'tokenRegistro': tokenRegistro,
+        'documento': documento.trim(),
+        'direccion': direccion.toJson(),
+        'aceptaTerminos': aceptaTerminos,
+      });
+
+      // `datos` debe ir como part con Content-Type: application/json
+      final files = <String, http.MultipartFile>{
+        'datos': http.MultipartFile.fromString(
+          'datos',
+          datosJson,
+          contentType: MediaType('application', 'json'),
+        ),
+      };
+
+      if (fotoBytes != null && fotoBytes.isNotEmpty) {
+        files['foto'] = http.MultipartFile.fromBytes(
+          'foto',
+          fotoBytes,
+          filename: fotoFilename ?? 'perfil.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        );
+      }
+
+      final response = await _api.postMultipart(
+        endpoint: ApiConstants.googleCompletarRegistroEndpoint,
+        fields: const {},
+        files: files,
         requiresAuth: false,
       );
 

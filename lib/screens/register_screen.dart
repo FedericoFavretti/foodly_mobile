@@ -125,8 +125,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
     try {
+      // Paso 1: obtener idToken de Google
       final tokens = await _googleSignInService.signIn();
       if (tokens == null) return;
+
+      // Paso 2a: iniciar registro — verifica que el email no exista y obtiene tokenRegistro
+      final pendiente = await _authRepository.iniciarRegistroGoogle(
+        idToken: tokens.accessToken,
+      );
 
       final direccion = DireccionModel(
         calle: _calleController.text.trim(),
@@ -137,12 +143,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             : _codigoPostalController.text.trim(),
       );
 
-      await _authRepository.loginWithGoogle(
-        accessToken: tokens.accessToken,
-        esRegistro: true,
+      // Paso 2b: completar registro con datos complementarios (foto opcional)
+      await _authRepository.completarRegistroGoogle(
+        tokenRegistro: pendiente.tokenRegistro,
         documento: _documentoController.text.trim(),
         direccion: direccion,
+        aceptaTerminos: true,
+        fotoBytes: _fotoBytes != null ? List<int>.from(_fotoBytes!) : null,
+        fotoFilename: _fotoFilename,
       );
+
       if (!mounted) return;
       await offerBiometricIfNeeded(context, _biometricService);
       if (!mounted) return;

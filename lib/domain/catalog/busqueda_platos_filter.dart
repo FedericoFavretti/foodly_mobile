@@ -35,4 +35,30 @@ class BusquedaPlatosFilter {
     }
     return body;
   }
+
+  /// Construye los query params para `GET /clientes/busqueda`.
+  Map<String, String> toQueryParams({int? localId}) {
+    final params = <String, String>{};
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isNotEmpty) {
+      params['nombre'] = normalizedQuery;
+    }
+    if (soloPromociones) {
+      params['promocionActiva'] = 'true';
+    }
+    switch (sort) {
+      case PlatoSearchSort.nombre:
+        params['alfabetico'] = 'true';
+      case PlatoSearchSort.precioAsc:
+        params['precioMasBajo'] = 'true';
+      case PlatoSearchSort.precioDesc:
+        params['precioMasAlto'] = 'true';
+      case PlatoSearchSort.none:
+        break;
+    }
+    if (localId != null) {
+      params['localId'] = localId.toString();
+    }
+    return params;
+  }
 }

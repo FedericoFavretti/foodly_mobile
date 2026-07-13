@@ -132,7 +132,7 @@ void main() {
 
     test('API null retorna lista vacía', () async {
       final client = MockClient((request) async {
-        expect(request.method, 'POST');
+        expect(request.method, 'GET');
         expect(request.url.path, '/api/v1/clientes/listar_locales');
         return http.Response('null', 200);
       });
@@ -159,7 +159,7 @@ void main() {
       ]);
 
       final client = MockClient((request) async {
-        expect(request.method, 'POST');
+        expect(request.method, 'GET');
         expect(request.url.path, '/api/v1/clientes/listar_locales');
         return http.Response(body, 200);
       });
@@ -193,7 +193,7 @@ void main() {
     test('API con catálogo real habilitado por defecto', () async {
       // Verificar que useMockCatalog es false por defecto (Fase 8)
       final client = MockClient((request) async {
-        expect(request.method, 'POST');
+        expect(request.method, 'GET');
         expect(request.url.path, '/api/v1/clientes/listar_locales');
         return http.Response(jsonEncode([]), 200);
       });
@@ -260,7 +260,7 @@ void main() {
       });
 
       final client = MockClient((request) async {
-        expect(request.method, 'POST');
+        expect(request.method, 'GET');
         expect(request.url.path, '/api/v1/clientes/busqueda');
         return http.Response(body, 200);
       });
@@ -276,12 +276,13 @@ void main() {
       expect(platos.first.localId, 3);
     });
 
-    test('API listar_locales envía body de filtros server-side', () async {
-      Map<String, dynamic>? capturedBody;
+    test('API listar_locales envía query params de filtros server-side', () async {
+      Map<String, String>? capturedParams;
 
       final client = MockClient((request) async {
-        capturedBody =
-            jsonDecode(request.body) as Map<String, dynamic>;
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/v1/clientes/listar_locales');
+        capturedParams = request.url.queryParameters;
         return http.Response(jsonEncode([]), 200);
       });
 
@@ -298,9 +299,9 @@ void main() {
         ),
       );
 
-      expect(capturedBody, {
+      expect(capturedParams, {
         'nombre': 'pizza',
-        'estaAbierto': true,
+        'estaAbierto': 'true',
         'ordenarPor': 'calificacion',
         'direccion': 'desc',
       });
@@ -492,13 +493,13 @@ void main() {
 
     test('500 en busqueda intenta fallback GET platos del local', () async {
       final client = MockClient((request) async {
-        if (request.method == 'POST') {
+        expect(request.method, 'GET');
+        if (request.url.path == '/api/v1/clientes/busqueda') {
           return http.Response(
             '{"mensaje":"Error interno del servidor","status":500}',
             500,
           );
         }
-        expect(request.method, 'GET');
         expect(request.url.path, '/api/v1/locales/busqueda_plato_local/3');
         return http.Response(
           jsonEncode([
@@ -690,8 +691,8 @@ void main() {
       expect(items.first.localNombre, 'Pizza Napoli');
     });
 
-    test('API envía body de búsqueda global', () async {
-      Map<String, dynamic>? capturedBody;
+    test('API envía query params de búsqueda global', () async {
+      Map<String, String>? capturedParams;
 
       final body = jsonEncode({
         'platos': [
@@ -708,8 +709,9 @@ void main() {
       });
 
       final client = MockClient((request) async {
-        capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(request.method, 'GET');
         expect(request.url.path, '/api/v1/clientes/busqueda');
+        capturedParams = request.url.queryParameters;
         return http.Response(body, 200);
       });
 
@@ -724,9 +726,9 @@ void main() {
         ),
       );
 
-      expect(capturedBody, {
+      expect(capturedParams, {
         'nombre': 'burger',
-        'precioMasAlto': true,
+        'precioMasAlto': 'true',
       });
       expect(items.length, 1);
       expect(items.first.localNombre, 'Burger House');

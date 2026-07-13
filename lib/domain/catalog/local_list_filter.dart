@@ -17,7 +17,7 @@ class LocalListFilter {
   final String? ordenarPor;
   final String? direccion;
 
-  /// Construye el body JSON enviado al backend.
+  /// Construye el body JSON enviado al backend (legado, no usar con GET).
   Map<String, dynamic> toRequestBody() {
     final body = <String, dynamic>{};
     final search = nombre?.trim();
@@ -35,6 +35,26 @@ class LocalListFilter {
       body['direccion'] = direccion ?? 'desc';
     }
     return body;
+  }
+
+  /// Construye los query params para `GET /clientes/listar_locales`.
+  Map<String, String> toQueryParams() {
+    final params = <String, String>{};
+    final search = nombre?.trim();
+    if (search != null && search.isNotEmpty) {
+      params['nombre'] = search;
+    }
+    if (soloAbiertos) {
+      params['estaAbierto'] = 'true';
+    }
+    if (calificacionMinima != null) {
+      params['calificacionMinima'] = calificacionMinima.toString();
+    }
+    if (ordenarPor != null && ordenarPor!.isNotEmpty) {
+      params['ordenarPor'] = ordenarPor!;
+      params['direccion'] = direccion ?? 'desc';
+    }
+    return params;
   }
 
   /// Mapea el estado de la UI de [MainScreen] al filtro del API.
