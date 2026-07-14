@@ -6,7 +6,7 @@ La app usa `--dart-define` en lugar de un `.env`. El archivo `.vscode/launch.jso
 
 ```bash
 flutter run \
-  --dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-hc2bh6e5fcomfag97b0ho4e701p2mnuk.apps.googleusercontent.com \
+  --dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-svvpngeddntj3jkeo3fmopahj9h1c29d.apps.googleusercontent.com \
   --dart-define=API_BASE_URL=https://proyectoequipo32026-test.up.railway.app
 ```
 
