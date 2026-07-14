@@ -49,6 +49,9 @@ abstract final class ApiConstants {
   static const pedidosEndpoint = '/api/v1/pedidos';
   static const historialPedidosEndpoint = '/api/v1/pedidos/mi-historial';
 
+  static String pedidoByIdEndpoint(int pedidoId) =>
+      '$pedidosEndpoint/$pedidoId';
+
   static String cancelarPedidoEndpoint(int pedidoId) =>
       '$pedidosEndpoint/$pedidoId/cancelar';
 
@@ -57,6 +60,12 @@ abstract final class ApiConstants {
 
   static String pedidoClienteEndpoint(int clienteId) =>
       '$pedidosEndpoint/clientes/$clienteId';
+
+  // ── Notificaciones ────────────────────────────────────────────────────────
+  static const notificacionesMiasEndpoint = '/api/v1/notificaciones/mias';
+
+  static String notificacionLeidaEndpoint(int id) =>
+      '/api/v1/notificaciones/$id/leida';
 
   // ── Reclamos / calificaciones ─────────────────────────────────────────────
   static const reclamoBaseEndpoint = '/api/v1/reclamos';

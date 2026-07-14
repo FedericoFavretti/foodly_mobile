@@ -101,6 +101,33 @@ class PedidoRepository {
     }
   }
 
+  Future<PedidoResponseModel> obtenerPedido(int pedidoId) async {
+    try {
+      final response = await _api.get(
+        ApiConstants.pedidoByIdEndpoint(pedidoId),
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        return PedidoResponseModel.fromJson(decoded);
+      }
+
+      throw ApiException(
+        statusCode: response.statusCode,
+        userMessage: _mapErrorMessage(response.body) ??
+            'No se pudo obtener el pedido.',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+      throw ApiException(
+        statusCode: 0,
+        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
+        debugInfo: error.toString(),
+      );
+    }
+  }
+
   Future<List<PedidoResponseModel>> listarHistorial({String? estado}) async {
     try {
       final queryParameters = estado != null && estado.trim().isNotEmpty

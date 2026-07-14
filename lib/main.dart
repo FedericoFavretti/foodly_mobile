@@ -176,7 +176,7 @@ class FoodlyApp extends StatelessWidget {
         return FoodlyPageRoute(
           page: AuthGate(
             child: AppShell(
-              initialIndex: initialTab is int ? initialTab : 0,
+              initialIndex: (initialTab is int ? initialTab : 0).clamp(0, 4),
             ),
           ),
           settings: settings,
