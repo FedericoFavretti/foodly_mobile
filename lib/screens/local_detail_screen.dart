@@ -21,12 +21,11 @@ import '../widgets/skeleton_loader.dart';
 import '../widgets/wavy_accent.dart';
 
 class LocalDetailScreen extends StatefulWidget {
-  const LocalDetailScreen({super.key, required this.localId, this.local});
+  const LocalDetailScreen({super.key, required this.localId});
 
   static const routeName = '/local';
 
   final int localId;
-  final LocalModel? local;
 
   @override
   State<LocalDetailScreen> createState() => _LocalDetailScreenState();
@@ -37,19 +36,17 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
   final _calificacionRepository = CalificacionRepository();
   final _searchController = TextEditingController();
 
-  bool _isLoading = true;
-  Object? _error;
-  _LocalDetailData? _data;
+  late Future<_LocalDetailData> _dataFuture;
   String _query = '';
   PlatoSortOption _sort = PlatoSortOption.nombre;
 
   @override
   void initState() {
     super.initState();
+    _dataFuture = _loadData();
     _searchController.addListener(() {
       setState(() => _query = _searchController.text);
     });
-    _load();
   }
 
   @override
@@ -112,26 +109,12 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
     }
   }
 
-  Widget _buildBody() {
-    if (_isLoading && _data == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null) {
-      final message = _error is ApiException
-          ? (_error as ApiException).userMessage
-          : _error is NetworkException
-              ? (_error as NetworkException).userMessage
-              : 'Ocurrió un error al cargar el local.';
-      return _MessageState(
-        message: message,
-        onRetry: () {
-          setState(() {
-            _isLoading = true;
-            _error = null;
-          });
-          _load();
-        },
+  Future<_LocalDetailData> _loadData() async {
+    final local = await _repository.obtenerLocal(widget.localId);
+    if (local == null) {
+      throw const ApiException(
+        statusCode: 404,
+        userMessage: 'El local solicitado no existe.',
       );
     }
 

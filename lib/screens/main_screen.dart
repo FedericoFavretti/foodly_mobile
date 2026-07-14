@@ -37,9 +37,7 @@ class _MainScreenState extends State<MainScreen> {
   final _catalogRepository = CatalogRepository();
   final _searchController = TextEditingController();
 
-  bool _isLoading = true;
-  Object? _error;
-  List<LocalModel>? _data;
+  late Future<List<LocalModel>> _localesFuture;
   String _query = '';
   _FiltroRapido _filtroRapido = _FiltroRapido.todos;
   LocalSortOption _sort = LocalSortOption.nombre;
@@ -500,7 +498,6 @@ class _FeaturedSection extends StatelessWidget {
             ),
           ),
         ],
-      ),
       ),
     );
   }

@@ -7,7 +7,6 @@ import '../../domain/cart/cart_item.dart';
 import '../../domain/pedido/medio_pago.dart';
 import '../models/direccion_model.dart';
 import '../models/pedido_response_model.dart';
-import 'cliente_profile_repository.dart';
 
 class PedidoRepository {
   PedidoRepository({ApiClient? api}) : _api = api ?? ApiClient();
@@ -21,24 +20,6 @@ class PedidoRepository {
   static const localCerradoMessage =
       'Lo sentimos, el local seleccionado cerró y no acepta más pedidos por el momento.';
 
-  Future<T> _execute<T>(Future<T> Function() fn) async {
-    try {
-      return await fn();
-    } on ApiException {
-      rethrow;
-    } on SessionExpiredException {
-      rethrow;
-    } on NetworkException {
-      rethrow;
-    } catch (error) {
-      throw ApiException(
-        statusCode: 0,
-        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
-        debugInfo: error.toString(),
-      );
-    }
-  }
-
   Future<PedidoResponseModel> realizarPedido({
     required int clienteId,
     required int localId,
@@ -47,11 +28,18 @@ class PedidoRepository {
     required MedioPago medioPago,
   }) async {
     if (items.isEmpty) {
-      throw const ApiException(statusCode: 400, userMessage: sinPlatosMessage);
+      throw const ApiException(
+        statusCode: 400,
+        userMessage: sinPlatosMessage,
+      );
     }
+
     for (final item in items) {
       if (item.cantidad <= 0) {
-        throw const ApiException(statusCode: 400, userMessage: cantidadInvalidaMessage);
+        throw const ApiException(
+          statusCode: 400,
+          userMessage: cantidadInvalidaMessage,
+        );
       }
     }
 
@@ -69,21 +57,48 @@ class PedidoRepository {
         'pagoSimulado': false,
       },
       'detalles': items
-          .map((item) => {'dtPlato': {'id': item.plato.id}, 'cantidad': item.cantidad})
+          .map(
+            (item) => {
+              'dtPlato': {'id': item.plato.id},
+              'cantidad': item.cantidad,
+            },
+          )
           .toList(),
     };
 
-    return _execute(() async {
-      final response = await _api.post(ApiConstants.pedidosEndpoint, body, requiresAuth: true);
+    try {
+      final response = await _api.post(
+        ApiConstants.pedidosEndpoint,
+        body,
+        requiresAuth: true,
+      );
+
       if (response.statusCode == 200) {
-        return PedidoResponseModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return PedidoResponseModel.fromJson(data);
       }
+
+      final userMessage = _mapErrorMessage(response.body) ??
+          'No pudimos confirmar tu pedido. Intentalo más tarde.';
+
       throw ApiException(
         statusCode: response.statusCode,
-        userMessage: _mapErrorMessage(response.body) ?? 'No pudimos confirmar tu pedido. Intentalo más tarde.',
+        userMessage: userMessage,
         debugInfo: response.body,
       );
-    });
+    } on ApiException {
+      rethrow;
+    } on SessionExpiredException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (error) {
+      throw ApiException(
+        statusCode: 0,
+        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
+        debugInfo: error.toString(),
+      );
+    }
   }
 
   Future<PedidoResponseModel> obtenerPedido(int pedidoId) async {
@@ -160,6 +175,7 @@ class PedidoRepository {
         debugInfo: error.toString(),
       );
     }
+  }
 
   /// Reinicia el proceso de pago de un pedido MP fallido / pendiente.
   /// Devuelve el pedido actualizado con un nuevo `mpInitPoint`.
@@ -213,19 +229,30 @@ class PedidoRepository {
         requiresAuth: true,
       );
 
-  Future<void> cancelarPedido(int pedidoId) => _execute(() async {
-    final response = await _api.post(
-      '${ApiConstants.pedidosEndpoint}/$pedidoId/cancelar',
-      {},
-      requiresAuth: true,
-    );
-    if (response.statusCode == 200) return;
-    throw ApiException(
-      statusCode: response.statusCode,
-      userMessage: _mapErrorMessage(response.body) ?? 'No pudimos cancelar el pedido. Intentalo más tarde.',
-      debugInfo: response.body,
-    );
-  });
+      if (response.statusCode == 200) return;
+
+      final userMessage = _mapErrorMessage(response.body) ??
+          'No pudimos cancelar el pedido. Intentalo más tarde.';
+
+      throw ApiException(
+        statusCode: response.statusCode,
+        userMessage: userMessage,
+        debugInfo: response.body,
+      );
+    } on ApiException {
+      rethrow;
+    } on SessionExpiredException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (error) {
+      throw ApiException(
+        statusCode: 0,
+        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
+        debugInfo: error.toString(),
+      );
+    }
+  }
 
   String? _mapErrorMessage(String body) {
     if (body.isEmpty) return null;
