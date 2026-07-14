@@ -6,11 +6,10 @@ import 'core/navigation/foodly_page_route.dart';
 import 'theme/foodly_colors.dart';
 import 'theme/foodly_theme.dart';
 import 'domain/cart/cart_notifier.dart';
+import 'domain/session/session_manager.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'data/models/pedido_response_model.dart';
-import 'domain/session/session_manager.dart';
-import 'data/models/local_model.dart';
 import 'screens/app_shell.dart';
 import 'screens/cart_screen.dart';
 import 'screens/checkout_screen.dart';
@@ -52,6 +51,8 @@ class FoodlyApp extends StatelessWidget {
         navigatorKey: _navigatorKey,
         title: 'Foodly',
         debugShowCheckedModeBanner: false,
+        scrollBehavior:
+            const MaterialScrollBehavior().copyWith(overscroll: false),
         theme: FoodlyTheme.light.copyWith(
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
@@ -96,7 +97,8 @@ class FoodlyApp extends StatelessWidget {
   static Route<dynamic>? _generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case HomeScreen.routeName:
-        return FoodlyPageRoute(page: const HomeScreen(), settings: settings);
+        return FoodlyPageRoute(
+            page: const _AppStartup(), settings: settings);
       case LoginScreen.routeName:
         return FoodlyPageRoute(
           page: LoginScreen(
@@ -229,5 +231,43 @@ class FoodlyApp extends StatelessWidget {
       default:
         return null;
     }
+  }
+}
+
+// Verifica si hay sesión activa al abrir la app: si la hay, va al shell
+// directamente sin mostrar la home. Si no, muestra la home normal.
+class _AppStartup extends StatefulWidget {
+  const _AppStartup();
+
+  @override
+  State<_AppStartup> createState() => _AppStartupState();
+}
+
+class _AppStartupState extends State<_AppStartup> {
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    final hasSession = await SessionManager.hasSession();
+    if (!mounted) return;
+    if (hasSession) {
+      Navigator.pushReplacementNamed(context, MainScreen.routeName);
+    } else {
+      setState(() => _ready = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_ready) return const HomeScreen();
+    return const Scaffold(
+      backgroundColor: FoodlyColors.blanco,
+      body: Center(child: CircularProgressIndicator()),
+    );
   }
 }
