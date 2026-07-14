@@ -810,7 +810,9 @@ void main() {
       expect(items.first.localNombre, 'Pizza Napoli');
     });
 
-    test('API envía query params de búsqueda global', () async {
+    test(
+        'API no manda "nombre" (backend matchea palabra completa, no '
+        'substring) y pide la página máxima', () async {
       Map<String, String>? capturedParams;
 
       final body = jsonEncode({
@@ -846,11 +848,51 @@ void main() {
       );
 
       expect(capturedParams, {
-        'nombre': 'burger',
+        'tamanio': '100',
         'precioMasAlto': 'true',
       });
       expect(items.length, 1);
       expect(items.first.localNombre, 'Burger House');
+    });
+
+    test('filtra client-side por texto parcial (el backend no lo hace)',
+        () async {
+      final body = jsonEncode({
+        'platos': [
+          {
+            'id': 10,
+            'nombre': 'Bacon Cheese Superburger',
+            'precio': 400.0,
+            'disponible': true,
+            'imagenes': [],
+            'dtLocal': {'id': 1, 'nombre': 'Burger House'},
+          },
+          {
+            'id': 11,
+            'nombre': 'Milanesa',
+            'precio': 350.0,
+            'disponible': true,
+            'imagenes': [],
+            'dtLocal': {'id': 1, 'nombre': 'Burger House'},
+          },
+        ],
+        'promociones': [],
+      });
+
+      final client = MockClient((request) async {
+        return http.Response(body, 200);
+      });
+
+      final repository = CatalogRepository(
+        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+      );
+
+      final items = await repository.buscarPlatos(
+        const BusquedaPlatosFilter(query: 'burger'),
+      );
+
+      expect(items.length, 1);
+      expect(items.first.plato.nombre, 'Bacon Cheese Superburger');
     });
   });
 }

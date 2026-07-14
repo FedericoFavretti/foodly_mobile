@@ -263,6 +263,7 @@ class ApiCatalogDataSource implements CatalogDataSource {
       }
       return CatalogGlobalSearch.fromResponse(
         decoded,
+        query: filter.query,
         soloPromociones: filter.soloPromociones,
         precioMaximo: filter.precioMaximo,
       );

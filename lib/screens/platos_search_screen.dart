@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../core/catalog/catalog_filter.dart';
 import '../core/constants/api_constants.dart';
 import '../core/errors/api_exception.dart';
 import '../data/repositories/catalog_repository.dart';
@@ -32,6 +33,7 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
   String _query = '';
   bool _soloPromociones = false;
   PlatoSearchSort _sort = PlatoSearchSort.none;
+  int? _categoriaId;
   Timer? _searchDebounce;
   Future<List<PlatoBusquedaItem>>? _resultsFuture;
 
@@ -89,8 +91,13 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
       _query = '';
       _soloPromociones = false;
       _sort = PlatoSearchSort.none;
+      _categoriaId = null;
     });
     _reloadResults();
+  }
+
+  void _setCategoriaId(int? categoriaId) {
+    setState(() => _categoriaId = categoriaId);
   }
 
   void _openSortSheet() {
@@ -302,9 +309,21 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
                   );
                 }
 
-                final items = snapshot.data ?? [];
+                final allItems = snapshot.data ?? [];
+                final categorias = CatalogFilter.categoriasDe(
+                  allItems.map((item) => item.plato).toList(),
+                );
+                if (_categoriaId != null &&
+                    categorias.every((c) => c.id != _categoriaId)) {
+                  _categoriaId = null;
+                }
+                final items = _categoriaId == null
+                    ? allItems
+                    : allItems
+                        .where((item) => item.plato.categoriaId == _categoriaId)
+                        .toList();
 
-                if (items.isEmpty) {
+                if (allItems.isEmpty) {
                   return SliverFillRemaining(
                     hasScrollBody: false,
                     child: EmptyState(
@@ -321,6 +340,40 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
 
                 return SliverMainAxisGroup(
                   slivers: [
+                    if (categorias.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                          child: Row(
+                            children: [
+                              FoodlyFilterChip(
+                                label: 'Todas',
+                                selected: _categoriaId == null,
+                                onTap: () => _setCategoriaId(null),
+                              ),
+                              for (final categoria in categorias)
+                                FoodlyFilterChip(
+                                  label: categoria.nombre,
+                                  selected: _categoriaId == categoria.id,
+                                  onTap: () => _setCategoriaId(categoria.id),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (items.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: EmptyState(
+                          icon: Icons.restaurant_menu_outlined,
+                          title: 'Sin resultados',
+                          subtitle: 'No encontramos platos en esa categoría.',
+                          actionLabel: 'Limpiar filtros',
+                          onAction: _clearFilters,
+                        ),
+                      )
+                    else ...[
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -356,6 +409,7 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
                         ),
                       ),
                     ),
+                    ],
                   ],
                 );
               },

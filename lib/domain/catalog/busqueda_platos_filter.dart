@@ -37,12 +37,17 @@ class BusquedaPlatosFilter {
   }
 
   /// Construye los query params para `GET /clientes/busqueda`.
+  ///
+  /// No se manda `nombre`: el backend matchea por palabra completa
+  /// (case-sensitive) en vez de "contiene", lo que rompe la búsqueda en
+  /// vivo mientras el usuario escribe. En su lugar se pide la página más
+  /// grande posible (`tamanio` máximo permitido) y el texto se filtra
+  /// client-side en [CatalogGlobalSearch], igual que ya se hace para el
+  /// menú de un local.
   Map<String, String> toQueryParams({int? localId}) {
-    final params = <String, String>{};
-    final normalizedQuery = query.trim();
-    if (normalizedQuery.isNotEmpty) {
-      params['nombre'] = normalizedQuery;
-    }
+    final params = <String, String>{
+      'tamanio': '100',
+    };
     if (soloPromociones) {
       params['promocionActiva'] = 'true';
     }

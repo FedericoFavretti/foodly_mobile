@@ -75,14 +75,10 @@ class CatalogFilter {
     return result;
   }
 
-  /// Categorías presentes en el menú de un local, ordenadas alfabéticamente.
-  static List<PlatoCategoriaOption> categoriasDeLocal({
-    required List<PlatoModel> platos,
-    required int localId,
-  }) {
+  /// Categorías presentes en una lista de platos, ordenadas alfabéticamente.
+  static List<PlatoCategoriaOption> categoriasDe(List<PlatoModel> platos) {
     final porId = <int, String>{};
     for (final plato in platos) {
-      if (plato.localId != localId) continue;
       final id = plato.categoriaId;
       final nombre = plato.categoriaNombre?.trim();
       if (id == null || nombre == null || nombre.isEmpty) continue;
@@ -93,5 +89,15 @@ class CatalogFilter {
         .toList()
       ..sort((a, b) => a.nombre.compareTo(b.nombre));
     return categorias;
+  }
+
+  /// Categorías presentes en el menú de un local, ordenadas alfabéticamente.
+  static List<PlatoCategoriaOption> categoriasDeLocal({
+    required List<PlatoModel> platos,
+    required int localId,
+  }) {
+    return categoriasDe(
+      platos.where((plato) => plato.localId == localId).toList(),
+    );
   }
 }
