@@ -254,6 +254,9 @@ class HistorialScreenState extends State<HistorialScreen>
       comentarioInicial: existente?.comentario ?? '',
       esEdicion: esEdicion,
     );
+    } finally {
+      comentario.dispose();
+    }
 
     if (result == null || !mounted) return;
 
@@ -341,7 +344,8 @@ class HistorialScreenState extends State<HistorialScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancelar pedido'),
-        content: Text('¿Cancelar el pedido Nº ${pedido.id} de ${pedido.localNombre}?'),
+        content: Text(
+            '¿Cancelar el pedido Nº ${pedido.id} de ${pedido.localNombre}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -434,6 +438,110 @@ class HistorialScreenState extends State<HistorialScreen>
     if (pedido.localId == null) return false;
     final estado = pedido.estado.toLowerCase();
     return estado == 'confirmado' || estado == 'entregado';
+  }
+
+  Widget _buildContent() {
+    if (_isLoading && _data == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      final message = _error is ApiException
+          ? (_error as ApiException).userMessage
+          : _error is NetworkException
+              ? (_error as NetworkException).userMessage
+              : 'Ocurrió un error al cargar el historial.';
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: FoodlyColors.grisIntermedio,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _reload,
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final all = _data ?? [];
+
+    if (all.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Aún no ha realizado ningún pedido. ¡Explore los locales disponibles y realice su primer pedido!',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunito(
+              fontSize: 15,
+              color: FoodlyColors.grisIntermedio,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final filtered = _applyFilter(all);
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'No se encontraron pedidos que coincidan con los criterios seleccionados.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: FoodlyColors.grisIntermedio,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => setState(() => _filtroEstado = null),
+                child: const Text('Limpiar filtro'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) {
+        final p = filtered[index];
+        return _PedidoCard(
+          pedido: p,
+          onCancel: p.estado.toLowerCase() == 'pendiente'
+              ? () => _cancelar(p)
+              : null,
+          onReclamar: p.estado.toLowerCase() == 'confirmado'
+              ? () => _reclamar(p)
+              : null,
+          onCalificar: () => _calificar(p),
+        );
+      },
+    );
   }
 
   @override

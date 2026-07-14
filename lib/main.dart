@@ -9,6 +9,8 @@ import 'domain/cart/cart_notifier.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'data/models/pedido_response_model.dart';
+import 'domain/session/session_manager.dart';
+import 'data/models/local_model.dart';
 import 'screens/app_shell.dart';
 import 'screens/cart_screen.dart';
 import 'screens/checkout_screen.dart';

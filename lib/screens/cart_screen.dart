@@ -31,12 +31,25 @@ class CartScreen extends StatelessWidget {
 
           if (cart.isEmpty) {
             return Center(
-              child: Text(
-                'Debe agregar al menos un plato para realizar el pedido.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.nunito(
-                  fontSize: 15,
-                  color: FoodlyColors.grisIntermedio,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Tu carrito está vacío. Agregá platos desde un local para continuar.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.nunito(
+                        fontSize: 15,
+                        color: FoodlyColors.grisIntermedio,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Volver'),
+                    ),
+                  ],
                 ),
               ),
             );

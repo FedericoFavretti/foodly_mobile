@@ -183,6 +183,21 @@ class _StatusBadge extends StatelessWidget {
           fontWeight: FontWeight.w800,
           color: foreground,
         ),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: size,
+            height: size,
+            color: FoodlyColors.grisClaro,
+            child: const Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
