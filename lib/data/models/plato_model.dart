@@ -12,6 +12,8 @@ class PlatoModel {
     this.descuentoPercent,
     this.promocionId,
     this.promocionTitulo,
+    this.categoriaId,
+    this.categoriaNombre,
   });
 
   final int id;
@@ -28,6 +30,8 @@ class PlatoModel {
   final int? descuentoPercent;
   final int? promocionId;
   final String? promocionTitulo;
+  final int? categoriaId;
+  final String? categoriaNombre;
 
   /// Alias explícito para UI y carrito.
   double get precioFinal => precio;
@@ -48,6 +52,8 @@ class PlatoModel {
     int? descuentoPercent,
     int? promocionId,
     String? promocionTitulo,
+    int? categoriaId,
+    String? categoriaNombre,
   }) {
     return PlatoModel(
       id: id ?? this.id,
@@ -62,6 +68,8 @@ class PlatoModel {
       descuentoPercent: descuentoPercent ?? this.descuentoPercent,
       promocionId: promocionId ?? this.promocionId,
       promocionTitulo: promocionTitulo ?? this.promocionTitulo,
+      categoriaId: categoriaId ?? this.categoriaId,
+      categoriaNombre: categoriaNombre ?? this.categoriaNombre,
     );
   }
 
@@ -71,10 +79,24 @@ class PlatoModel {
       throw FormatException('Plato sin id válido: $json');
     }
 
+    // El backend manda `imagen` (singular) para platos; `imagenes` (plural)
+    // es exclusivo de Local. Se tolera `imagenes` como fallback legado.
+    final imagenSingular = (json['imagen'] as String?)?.trim();
     final imagenesRaw = json['imagenes'];
-    final imagenes = imagenesRaw is List
+    final imagenesFallback = imagenesRaw is List
         ? imagenesRaw.map((e) => e.toString()).toList()
         : <String>[];
+    final imagenes = imagenSingular != null && imagenSingular.isNotEmpty
+        ? [imagenSingular]
+        : imagenesFallback;
+
+    final categoriaJson = json['dtCategoria'] ?? json['categoria'];
+    int? categoriaId;
+    String? categoriaNombre;
+    if (categoriaJson is Map<String, dynamic>) {
+      categoriaId = readInt(categoriaJson['id']);
+      categoriaNombre = categoriaJson['nombre'] as String?;
+    }
 
     final localJson = json['local'] ?? json['dtLocal'];
     var localId = readInt(json['localId']) ?? 0;
@@ -107,6 +129,8 @@ class PlatoModel {
       precioOriginal: tienePromo ? precioBase : null,
       tienePromocion: tienePromo,
       descuentoPercent: descuentoPercent,
+      categoriaId: categoriaId,
+      categoriaNombre: categoriaNombre,
     );
   }
 

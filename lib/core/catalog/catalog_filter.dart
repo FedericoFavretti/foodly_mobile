@@ -5,6 +5,14 @@ enum LocalSortOption { nombre, calificacion }
 
 enum PlatoSortOption { nombre, precio }
 
+/// Categoría de plato derivada del menú de un local, para armar chips de filtro.
+class PlatoCategoriaOption {
+  const PlatoCategoriaOption({required this.id, required this.nombre});
+
+  final int id;
+  final String nombre;
+}
+
 class CatalogFilter {
   static List<LocalModel> filterLocales({
     required List<LocalModel> locales,
@@ -45,10 +53,14 @@ class CatalogFilter {
     required int localId,
     String query = '',
     PlatoSortOption sort = PlatoSortOption.nombre,
+    int? categoriaId,
   }) {
     final normalizedQuery = query.trim().toLowerCase();
     var result = platos.where((plato) {
       if (plato.localId != localId) return false;
+      if (categoriaId != null && plato.categoriaId != categoriaId) {
+        return false;
+      }
       if (normalizedQuery.isEmpty) return true;
       return plato.nombre.toLowerCase().contains(normalizedQuery) ||
           plato.descripcion.toLowerCase().contains(normalizedQuery);
@@ -61,5 +73,25 @@ class CatalogFilter {
         result.sort((a, b) => a.precio.compareTo(b.precio));
     }
     return result;
+  }
+
+  /// Categorías presentes en el menú de un local, ordenadas alfabéticamente.
+  static List<PlatoCategoriaOption> categoriasDeLocal({
+    required List<PlatoModel> platos,
+    required int localId,
+  }) {
+    final porId = <int, String>{};
+    for (final plato in platos) {
+      if (plato.localId != localId) continue;
+      final id = plato.categoriaId;
+      final nombre = plato.categoriaNombre?.trim();
+      if (id == null || nombre == null || nombre.isEmpty) continue;
+      porId[id] = nombre;
+    }
+    final categorias = porId.entries
+        .map((entry) => PlatoCategoriaOption(id: entry.key, nombre: entry.value))
+        .toList()
+      ..sort((a, b) => a.nombre.compareTo(b.nombre));
+    return categorias;
   }
 }
