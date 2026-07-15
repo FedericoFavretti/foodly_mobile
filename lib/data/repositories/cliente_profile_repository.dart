@@ -83,16 +83,27 @@ class ClienteProfileRepository {
     }
 
     try {
-      final fields = <String, String>{
+      // El backend espera un @RequestPart "datos" con JSON anidado,
+      // no campos planos de formulario.
+      final datosJson = jsonEncode({
         'nombre': data.nombre.trim(),
         'apellido': data.apellido.trim(),
-        'direccion.calle': data.calle.trim(),
-        'direccion.numero': data.numero.trim(),
-        'direccion.ciudad': data.ciudad.trim(),
-        'direccion.codigoPostal': data.codigoPostal.trim(),
+        'direccion': {
+          'calle': data.calle.trim(),
+          'numero': data.numero.trim(),
+          'ciudad': data.ciudad.trim(),
+          'codigoPostal': data.codigoPostal.trim(),
+        },
+      });
+
+      final files = <String, http.MultipartFile>{
+        'datos': http.MultipartFile.fromString(
+          'datos',
+          datosJson,
+          contentType: MediaType('application', 'json'),
+        ),
       };
 
-      final files = <String, http.MultipartFile>{};
       if (data.fotoBytes != null && data.fotoBytes!.isNotEmpty) {
         files['foto'] = http.MultipartFile.fromBytes(
           'foto',
@@ -104,7 +115,7 @@ class ClienteProfileRepository {
 
       final response = await _api.putMultipart(
         endpoint: ApiConstants.perfilEndpoint,
-        fields: fields,
+        fields: const {},
         files: files,
         requiresAuth: true,
       );
