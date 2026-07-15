@@ -11,6 +11,12 @@ class ApiClient {
 
   final http.Client _client;
 
+  /// Base URL sin slash final para evitar doble slash al concatenar endpoints.
+  static String get _baseUrl {
+    final url = ApiConstants.baseUrl;
+    return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  }
+
   Future<http.Response> get(
     String endpoint, {
     bool requiresAuth = true,
@@ -18,7 +24,7 @@ class ApiClient {
   }) async {
     return _execute(() async {
       final headers = await _buildHeaders(requiresAuth: requiresAuth);
-      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint')
+      final uri = Uri.parse('$_baseUrl$endpoint')
           .replace(queryParameters: queryParameters);
       return _client.get(uri, headers: headers);
     }, requiresAuth: requiresAuth);
@@ -32,7 +38,7 @@ class ApiClient {
   }) async {
     return _execute(() async {
       final headers = await _buildHeaders(requiresAuth: requiresAuth);
-      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint')
+      final uri = Uri.parse('$_baseUrl$endpoint')
           .replace(queryParameters: queryParameters);
       return _client.post(
         uri,
@@ -50,7 +56,7 @@ class ApiClient {
   }) async {
     return _execute(() async {
       final headers = await _buildHeaders(requiresAuth: requiresAuth);
-      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint')
+      final uri = Uri.parse('$_baseUrl$endpoint')
           .replace(queryParameters: queryParameters);
       return _client.post(uri, headers: headers);
     }, requiresAuth: requiresAuth);
@@ -62,7 +68,7 @@ class ApiClient {
   }) async {
     return _execute(() async {
       final headers = await _buildHeaders(requiresAuth: requiresAuth);
-      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+      final uri = Uri.parse('$_baseUrl$endpoint');
       return _client.delete(uri, headers: headers);
     }, requiresAuth: requiresAuth);
   }
@@ -105,7 +111,7 @@ class ApiClient {
     required bool requiresAuth,
   }) async {
     return _execute(() async {
-      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+      final uri = Uri.parse('$_baseUrl$endpoint');
       final request = http.MultipartRequest(method, uri);
       final headers = await _buildHeaders(
         requiresAuth: requiresAuth,
