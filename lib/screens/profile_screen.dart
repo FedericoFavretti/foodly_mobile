@@ -210,55 +210,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (step1 != true || !mounted) return;
 
-    final emailController = TextEditingController();
     final step2 = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Escribí tu correo electrónico para confirmar:',
-              style: GoogleFonts.nunito(fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(hintText: 'tu@email.com'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (emailController.text.trim().toLowerCase() !=
-                  profile.email.toLowerCase()) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('El correo no coincide con tu cuenta.'),
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(context, true);
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFD32F2F),
-            ),
-            child: const Text('Eliminar mi cuenta'),
-          ),
-        ],
-      ),
+      builder: (context) =>
+          _DeleteAccountEmailDialog(expectedEmail: profile.email),
     );
-
-    emailController.dispose();
 
     if (step2 != true || !mounted) return;
 
@@ -526,6 +482,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .map((part) => part[0])
         .join()
         .toUpperCase();
+  }
+}
+
+class _DeleteAccountEmailDialog extends StatefulWidget {
+  const _DeleteAccountEmailDialog({required this.expectedEmail});
+
+  final String expectedEmail;
+
+  @override
+  State<_DeleteAccountEmailDialog> createState() =>
+      _DeleteAccountEmailDialogState();
+}
+
+class _DeleteAccountEmailDialogState extends State<_DeleteAccountEmailDialog> {
+  final _emailController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    if (_emailController.text.trim().toLowerCase() !=
+        widget.expectedEmail.toLowerCase()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El correo no coincide con tu cuenta.')),
+      );
+      return;
+    }
+    Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Confirmar eliminación'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Escribí tu correo electrónico para confirmar:',
+            style: GoogleFonts.nunito(fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(hintText: 'tu@email.com'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: _confirm,
+          style: TextButton.styleFrom(foregroundColor: const Color(0xFFD32F2F)),
+          child: const Text('Eliminar mi cuenta'),
+        ),
+      ],
+    );
   }
 }
 
