@@ -127,7 +127,7 @@ class AuthRepository {
       }
 
       final response = await _api.post(
-        ApiConstants.googleAuthEndpoint,
+        ApiConstants.googleMobileAuthEndpoint,
         body,
         requiresAuth: false,
       );
@@ -164,7 +164,7 @@ class AuthRepository {
   }) async {
     try {
       final response = await _api.post(
-        ApiConstants.googleIniciarRegistroEndpoint,
+        ApiConstants.googleMobileIniciarRegistroEndpoint,
         {
           'idToken': idToken.trim(),
           'direccion': null,

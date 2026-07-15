@@ -35,6 +35,11 @@ abstract final class ApiConstants {
       '/api/v1/clientes/google/registro/iniciar';
   static const googleCompletarRegistroEndpoint =
       '/api/v1/clientes/google/registro/completar';
+
+  // Endpoints exclusivos para flujo móvil (ID token JWT via Credential Manager)
+  static const googleMobileAuthEndpoint = '/api/v1/clientes/google/mobile';
+  static const googleMobileIniciarRegistroEndpoint =
+      '/api/v1/clientes/google/mobile/registro/iniciar';
   static const listarLocalesEndpoint = '/api/v1/clientes/listar_locales';
   static const busquedaPlatosEndpoint = '/api/v1/clientes/busqueda';
   static const localesPopularesEndpoint = '/api/v1/clientes/locales-populares';
