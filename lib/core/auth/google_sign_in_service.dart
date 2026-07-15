@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../constants/google_auth_constants.dart';
@@ -49,21 +50,29 @@ class PlatformGoogleSignInService implements GoogleSignInService {
     await _ensureInitialized();
 
     try {
+      debugPrint('[GoogleSignIn] Iniciando authenticate()...');
       final account = await _signIn.authenticate(scopeHint: _scopes);
-      final authz = await account.authorizationClient.authorizeScopes(_scopes);
+      debugPrint('[GoogleSignIn] authenticate() OK — email: ${account.email}');
 
-      // google_sign_in v7: `authorizeScopes` solo expone el OAuth access token.
-      // El backend lo recibe en el campo `idToken` y lo valida llamando a
-      // Google's UserInfo endpoint (oauth2/v3/userinfo).
-      // Si en el futuro el backend cambia a validar JWT ID token, habrá que
-      // migrar al flujo serverAuthCode.
-      final accessToken = authz.accessToken.trim();
-      if (accessToken.isEmpty) return null;
-      return GoogleSignInTokens(accessToken: accessToken);
+      // El ID token JWT viene directamente con authenticate() en v7.
+      // No es necesario llamar a authorizeScopes() (que puede quedar bloqueado
+      // en dispositivos físicos con Credential Manager).
+      final idToken = account.authentication.idToken;
+      debugPrint('[GoogleSignIn] idToken presente: ${idToken != null && idToken.isNotEmpty}');
+
+      if (idToken == null || idToken.isEmpty) {
+        debugPrint('[GoogleSignIn] idToken vacío, abortando.');
+        return null;
+      }
+      return GoogleSignInTokens(accessToken: idToken);
     } on GoogleSignInException catch (error) {
+      debugPrint('[GoogleSignIn] GoogleSignInException: ${error.code}');
       if (error.code == GoogleSignInExceptionCode.canceled) {
         return null;
       }
+      rethrow;
+    } catch (e) {
+      debugPrint('[GoogleSignIn] Error inesperado: $e');
       rethrow;
     }
   }
