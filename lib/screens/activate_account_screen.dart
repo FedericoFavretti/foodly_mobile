@@ -93,7 +93,7 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
     });
 
     try {
-      await _accountRepository.activarCuenta(_emailController.text);
+      await _accountRepository.reenviarActivacion(_emailController.text);
       if (!mounted) return;
       setState(() => _activated = true);
     } on ApiException catch (error) {
