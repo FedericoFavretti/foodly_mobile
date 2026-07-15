@@ -54,6 +54,36 @@ void main() {
 
       expect(local.imagenPrincipal, 'https://img.test/1.jpg');
     });
+
+    test('fromJson parsea celular y telefonoFijo del perfil', () {
+      final local = LocalModel.fromJson({
+        'id': 1,
+        'nombre': 'Local',
+        'descripcion': '',
+        'calificacionGlobal': 0,
+        'estaAbierto': true,
+        'imagenes': [],
+        'celular': '+598991234567',
+        'telefonoFijo': '+59824871234',
+      });
+
+      expect(local.celular, '+598991234567');
+      expect(local.telefonoFijo, '+59824871234');
+    });
+
+    test('fromJson sin celular/telefonoFijo los deja null', () {
+      final local = LocalModel.fromJson({
+        'id': 1,
+        'nombre': 'Local',
+        'descripcion': '',
+        'calificacionGlobal': 0,
+        'estaAbierto': true,
+        'imagenes': [],
+      });
+
+      expect(local.celular, isNull);
+      expect(local.telefonoFijo, isNull);
+    });
   });
 
   group('PlatoModel', () {
@@ -644,6 +674,83 @@ void main() {
 
       expect(platos.length, 1);
       expect(platos.first.nombre, 'Pizza');
+    });
+
+    test('obtenerLocal pega a GET /locales/{id}/perfil (trae teléfonos)', () async {
+      final client = MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/v1/locales/7/perfil');
+        return http.Response(
+          jsonEncode({
+            'id': 7,
+            'nombre': 'Pizza House',
+            'descripcion': '',
+            'calificacionGlobal': 4.5,
+            'estaAbierto': true,
+            'imagenes': [],
+            'celular': '+598991234567',
+            'telefonoFijo': '+59824871234',
+          }),
+          200,
+        );
+      });
+
+      final repository = CatalogRepository(
+        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+      );
+
+      final local = await repository.obtenerLocal(7);
+
+      expect(local, isNotNull);
+      expect(local!.nombre, 'Pizza House');
+      expect(local.celular, '+598991234567');
+      expect(local.telefonoFijo, '+59824871234');
+    });
+
+    test('obtenerLocal cae a listar_locales si falla el perfil', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/api/v1/locales/7/perfil') {
+          return http.Response('Internal Server Error', 500);
+        }
+        expect(request.url.path, '/api/v1/clientes/listar_locales');
+        return http.Response(
+          jsonEncode([
+            {
+              'id': 7,
+              'nombre': 'Pizza House',
+              'descripcion': '',
+              'calificacionGlobal': 4.5,
+              'estaAbierto': true,
+              'imagenes': [],
+            },
+          ]),
+          200,
+        );
+      });
+
+      final repository = CatalogRepository(
+        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+      );
+
+      final local = await repository.obtenerLocal(7);
+
+      expect(local, isNotNull);
+      expect(local!.nombre, 'Pizza House');
+      expect(local.celular, isNull);
+    });
+
+    test('obtenerLocal 404 devuelve null', () async {
+      final client = MockClient((request) async {
+        return http.Response('', 404);
+      });
+
+      final repository = CatalogRepository(
+        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+      );
+
+      final local = await repository.obtenerLocal(999);
+
+      expect(local, isNull);
     });
   });
 

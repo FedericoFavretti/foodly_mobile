@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/catalog/catalog_filter.dart';
 import '../core/errors/api_exception.dart';
+import '../core/validators/phone_format.dart';
 import '../data/models/local_model.dart';
 import '../data/models/mi_calificacion_local_model.dart';
 import '../data/models/plato_model.dart';
@@ -543,6 +545,10 @@ class _LocalMenuHero extends StatelessWidget {
                         ],
                       ),
                     ],
+                    if (local.telefonoFijo != null || local.celular != null) ...[
+                      const SizedBox(height: 10),
+                      _LocalPhoneButtons(local: local),
+                    ],
                   ],
                 ),
               ),
@@ -649,6 +655,81 @@ class _HeroImage extends StatelessWidget {
         ),
         child: Center(
           child: Icon(Icons.broken_image_outlined, color: FoodlyColors.blanco),
+        ),
+      ),
+    );
+  }
+}
+
+class _LocalPhoneButtons extends StatelessWidget {
+  const _LocalPhoneButtons({required this.local});
+
+  final LocalModel local;
+
+  Future<void> _call(String e164) async {
+    final uri = Uri.parse('tel:$e164');
+    await launchUrl(uri);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (local.telefonoFijo != null)
+          _PhonePill(
+            icon: Icons.call_outlined,
+            label: 'Tel: ${PhoneFormat.formatTelefonoFijo(local.telefonoFijo)}',
+            onTap: () => _call(local.telefonoFijo!),
+          ),
+        if (local.celular != null)
+          _PhonePill(
+            icon: Icons.phone_iphone,
+            label: 'Cel: ${local.celular}',
+            onTap: () => _call(local.celular!),
+          ),
+      ],
+    );
+  }
+}
+
+class _PhonePill extends StatelessWidget {
+  const _PhonePill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: FoodlyColors.blanco.withValues(alpha: 0.92),
+      borderRadius: BorderRadius.circular(999),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: FoodlyColors.celeste),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: GoogleFonts.nunito(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: FoodlyColors.grisOscuro,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

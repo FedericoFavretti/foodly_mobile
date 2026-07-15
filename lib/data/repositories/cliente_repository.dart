@@ -19,6 +19,7 @@ class RegistroClienteData {
     required this.numero,
     required this.ciudad,
     required this.codigoPostal,
+    this.celular,
     this.fotoBytes,
     this.fotoFilename,
   });
@@ -32,6 +33,8 @@ class RegistroClienteData {
   final String numero;
   final String ciudad;
   final String codigoPostal;
+  /// E.164 completo (ej. `+598991234567`). Opcional.
+  final String? celular;
   final List<int>? fotoBytes;
   final String? fotoFilename;
 }
@@ -61,6 +64,7 @@ class ClienteRepository {
 
   Future<void> registrar(RegistroClienteData data) async {
     try {
+      final celular = data.celular?.trim();
       final datosJson = jsonEncode({
         'email': data.email.trim(),
         'passwd': data.password,
@@ -73,6 +77,7 @@ class ClienteRepository {
           'ciudad': data.ciudad.trim(),
           'codigoPostal': data.codigoPostal.trim(),
         },
+        if (celular != null && celular.isNotEmpty) 'celular': celular,
       });
 
       // Construir files map - foto es opcional

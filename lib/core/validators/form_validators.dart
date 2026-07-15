@@ -2,6 +2,7 @@ abstract final class FormValidators {
   static final _emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
   static final _ciRegex = RegExp(r'^\d{7,8}$');
   static final _passwordRegex = RegExp(r'^(?=.*[A-Z])(?=.*\d).{8,}$');
+  static final _celularRegex = RegExp(r'^\+[1-9]\d{7,14}$');
 
   static String? email(String? value) {
     final trimmed = value?.trim() ?? '';
@@ -29,6 +30,16 @@ abstract final class FormValidators {
     final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
     if (!_ciRegex.hasMatch(digits)) {
       return 'El documento debe ser una cédula uruguaya válida (7 u 8 dígitos).';
+    }
+    return null;
+  }
+
+  /// El celular es opcional: solo valida formato si viene con contenido.
+  static String? celular(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return null;
+    if (!_celularRegex.hasMatch(trimmed)) {
+      return 'El celular ingresado no es válido. Verificá el código de país y el número.';
     }
     return null;
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/validators/phone_format.dart';
 import '../data/models/pedido_response_model.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
@@ -16,6 +17,7 @@ class PedidoCard extends StatefulWidget {
     this.onCalificar,
     this.calificarLabel,
     this.onReintentarPago,
+    this.celularLocal,
   });
 
   final PedidoResponseModel pedido;
@@ -27,6 +29,9 @@ class PedidoCard extends StatefulWidget {
   /// Callback para reintentar pago MP desde el historial.
   /// Cuando está presente se muestra el botón "Reintentar pago".
   final VoidCallback? onReintentarPago;
+  /// Celular del local (E.164), obtenido aparte por el caller vía
+  /// `GET /locales/{id}/perfil` — no viene en la respuesta de pedidos.
+  final String? celularLocal;
 
   @override
   State<PedidoCard> createState() => _PedidoCardState();
@@ -75,6 +80,10 @@ class _PedidoCardState extends State<PedidoCard> {
     final uri = Uri.tryParse(pedido.mpInitPoint!.trim());
     if (uri == null) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _call(String e164) async {
+    await launchUrl(Uri.parse('tel:$e164'));
   }
 
   @override
@@ -168,6 +177,27 @@ class _PedidoCardState extends State<PedidoCard> {
                 ),
               ],
             ),
+            if (pedido.localTelefonoFijo != null ||
+                widget.celularLocal != null) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (pedido.localTelefonoFijo != null)
+                    _PhoneInfoChip(
+                      label:
+                          'Teléfono del local: ${PhoneFormat.formatTelefonoFijo(pedido.localTelefonoFijo)}',
+                      onTap: () => _call(pedido.localTelefonoFijo!),
+                    ),
+                  if (widget.celularLocal != null)
+                    _PhoneInfoChip(
+                      label: 'Celular del local: ${widget.celularLocal}',
+                      onTap: () => _call(widget.celularLocal!),
+                    ),
+                ],
+              ),
+            ],
             if (pedido.estado == 'Rechazado' &&
                 pedido.motivoRechazo != null) ...[
               const SizedBox(height: 12),
@@ -393,6 +423,47 @@ class _InfoChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PhoneInfoChip extends StatelessWidget {
+  const _PhoneInfoChip({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: FoodlyColors.grisClaro,
+      borderRadius: BorderRadius.circular(999),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.call_outlined,
+                size: 14,
+                color: FoodlyColors.grisIntermedio,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: GoogleFonts.nunito(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: FoodlyColors.grisIntermedio,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

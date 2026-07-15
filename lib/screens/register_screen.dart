@@ -15,6 +15,7 @@ import '../widgets/auth_layout.dart';
 import '../widgets/foodly_button.dart';
 import '../widgets/google_icon.dart';
 import '../widgets/password_field.dart';
+import '../widgets/phone_field.dart';
 import 'activate_account_screen.dart';
 import 'google_registration_completion_screen.dart';
 import '../widgets/wavy_accent.dart';
@@ -57,6 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       widget.googleSignInService ?? PlatformGoogleSignInService();
   final _imagePicker = ImagePicker();
 
+  String _celular = '';
   Uint8List? _fotoBytes;
   String? _fotoFilename;
   bool _isLoading = false;
@@ -145,6 +147,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           numero: _numeroController.text,
           ciudad: _ciudadController.text,
           codigoPostal: _codigoPostalController.text,
+          celular: _celular,
           fotoBytes: _fotoBytes,
           fotoFilename: _fotoFilename,
         ),
@@ -310,6 +313,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.number,
                 enabled: !_isLoading,
                 decoration: const InputDecoration(hintText: 'Código postal (opcional)'),
+              ),
+              const SizedBox(height: 12),
+              PhoneField(
+                enabled: !_isLoading,
+                onChanged: (value) => _celular = value,
               ),
               const SizedBox(height: 12),
               TextFormField(

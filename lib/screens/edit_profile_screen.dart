@@ -11,6 +11,7 @@ import '../data/repositories/cliente_profile_repository.dart';
 import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
 import '../widgets/foodly_button.dart';
+import '../widgets/phone_field.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({
@@ -41,6 +42,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Uint8List? _fotoBytes;
   String? _fotoFilename;
   bool _isLoading = false;
+
+  /// Arranca siempre vacío: el backend no devuelve el celular guardado en
+  /// ningún endpoint de perfil hoy, así que no hay forma de precargarlo.
+  String _celular = '';
 
   @override
   void initState() {
@@ -94,6 +99,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           numero: _numeroController.text,
           ciudad: _ciudadController.text,
           codigoPostal: _codigoPostalController.text,
+          celular: _celular,
           fotoBytes: _fotoBytes,
           fotoFilename: _fotoFilename,
         ),
@@ -217,6 +223,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 fontSize: 13,
                 color: FoodlyColors.grisIntermedio,
               ),
+            ),
+            const SizedBox(height: 16),
+            PhoneField(
+              enabled: !_isLoading,
+              onChanged: (value) => _celular = value,
             ),
             const SizedBox(height: 28),
             _SectionLabel('Dirección de entrega'),

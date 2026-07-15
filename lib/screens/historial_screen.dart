@@ -8,6 +8,7 @@ import '../core/errors/api_exception.dart';
 import '../data/models/mi_calificacion_local_model.dart';
 import '../data/models/pedido_response_model.dart';
 import '../data/repositories/calificacion_repository.dart';
+import '../data/repositories/catalog_repository.dart';
 import '../data/repositories/pedido_repository.dart';
 import '../data/repositories/reclamo_repository.dart';
 import '../domain/pedido/pedido_list_filter.dart';
@@ -46,9 +47,14 @@ class HistorialScreenState extends State<HistorialScreen>
   final _pedidoRepository = PedidoRepository();
   final _reclamoRepository = ReclamoRepository();
   final _calificacionRepository = CalificacionRepository();
+  final _catalogRepository = CatalogRepository();
   List<PedidoResponseModel> _pedidos = [];
   /// Calificaciones ya consultadas por local (`null` = sin calificación previa).
   final Map<int, MiCalificacionLocalModel?> _calificacionesPorLocal = {};
+  /// Celular del local por id, cacheado en memoria: un solo fetch por local
+  /// distinto (el backend no lo incluye en la respuesta de pedidos, hay que
+  /// pedirlo aparte contra su perfil, y no repetirlo en cada refresh).
+  final Map<int, String?> _celularPorLocal = {};
   bool _isLoading = true;
   bool _isRefreshing = false;
   Object? _error;
@@ -111,6 +117,7 @@ class HistorialScreenState extends State<HistorialScreen>
         _isRefreshing = false;
       });
       _prefetchCalificaciones(pedidos);
+      _prefetchCelulares(pedidos);
       _syncPolling();
     } catch (error) {
       if (!mounted) return;
@@ -193,6 +200,24 @@ class HistorialScreenState extends State<HistorialScreen>
         setState(() => _calificacionesPorLocal[localId] = calificacion);
       } catch (_) {
         // Silencioso: el botón sigue disponible y se reintenta al calificar.
+      }
+    }
+  }
+
+  Future<void> _prefetchCelulares(List<PedidoResponseModel> pedidos) async {
+    final localIds = pedidos
+        .where((p) => p.localId != null)
+        .map((p) => p.localId!)
+        .toSet();
+
+    for (final localId in localIds) {
+      if (_celularPorLocal.containsKey(localId)) continue;
+      try {
+        final local = await _catalogRepository.obtenerLocal(localId);
+        if (!mounted) return;
+        setState(() => _celularPorLocal[localId] = local?.celular);
+      } catch (_) {
+        // Silencioso: la tarjeta simplemente no muestra el celular del local.
       }
     }
   }
@@ -590,6 +615,7 @@ class HistorialScreenState extends State<HistorialScreen>
             onCalificar: _puedeCalificar(p) ? () => _calificar(p) : null,
             calificarLabel: _puedeCalificar(p) ? _labelCalificar(p) : null,
             onReintentarPago: p.permiteReintentarPago ? () => _reintentarPago(p) : null,
+            celularLocal: p.localId != null ? _celularPorLocal[p.localId] : null,
           );
         },
       ),
