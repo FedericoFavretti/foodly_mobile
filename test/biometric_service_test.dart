@@ -50,31 +50,40 @@ void main() {
       expect(await service.authenticate(), BiometricResult.lockedOut);
     });
 
-    test('authenticate retorna notEnrolled cuando no hay biometría registrada',
-        () async {
-      final service =
-          _StubBiometricService(result: BiometricResult.notEnrolled);
-      expect(await service.authenticate(), BiometricResult.notEnrolled);
-    });
+    test(
+      'authenticate retorna notEnrolled cuando no hay biometría registrada',
+      () async {
+        final service = _StubBiometricService(
+          result: BiometricResult.notEnrolled,
+        );
+        expect(await service.authenticate(), BiometricResult.notEnrolled);
+      },
+    );
   });
 
   group('SessionManager — biometric preference', () {
-    test('getBiometricEnabled devuelve null cuando nunca se configuró',
-        () async {
-      expect(await SessionManager.getBiometricEnabled(), isNull);
-    });
+    test(
+      'getBiometricEnabled devuelve null cuando nunca se configuró',
+      () async {
+        expect(await SessionManager.getBiometricEnabled(), isNull);
+      },
+    );
 
-    test('setBiometricEnabled(true) → getBiometricEnabled devuelve true',
-        () async {
-      await SessionManager.setBiometricEnabled(true);
-      expect(await SessionManager.getBiometricEnabled(), isTrue);
-    });
+    test(
+      'setBiometricEnabled(true) → getBiometricEnabled devuelve true',
+      () async {
+        await SessionManager.setBiometricEnabled(true);
+        expect(await SessionManager.getBiometricEnabled(), isTrue);
+      },
+    );
 
-    test('setBiometricEnabled(false) → getBiometricEnabled devuelve false',
-        () async {
-      await SessionManager.setBiometricEnabled(false);
-      expect(await SessionManager.getBiometricEnabled(), isFalse);
-    });
+    test(
+      'setBiometricEnabled(false) → getBiometricEnabled devuelve false',
+      () async {
+        await SessionManager.setBiometricEnabled(false);
+        expect(await SessionManager.getBiometricEnabled(), isFalse);
+      },
+    );
 
     test('resetForTest limpia la preferencia biométrica', () async {
       await SessionManager.setBiometricEnabled(true);
@@ -87,18 +96,32 @@ void main() {
       await SessionManager.setBiometricEnabled(true);
       expect(await SessionManager.getToken(), 'fake.token.here');
     });
+
+    test('clearSession (logout) no borra la preferencia biométrica: debe '
+        'sobrevivir a un logout/re-login', () async {
+      await SessionManager.saveToken('fake.token.here');
+      await SessionManager.setBiometricEnabled(true);
+
+      await SessionManager.clearSession();
+
+      expect(await SessionManager.getToken(), isNull);
+      expect(await SessionManager.getBiometricEnabled(), isTrue);
+    });
   });
 
   group('BiometricResult enum', () {
     test('todos los valores del enum están definidos', () {
       expect(BiometricResult.values.length, 5);
-      expect(BiometricResult.values, containsAll([
-        BiometricResult.success,
-        BiometricResult.failed,
-        BiometricResult.unavailable,
-        BiometricResult.notEnrolled,
-        BiometricResult.lockedOut,
-      ]));
+      expect(
+        BiometricResult.values,
+        containsAll([
+          BiometricResult.success,
+          BiometricResult.failed,
+          BiometricResult.unavailable,
+          BiometricResult.notEnrolled,
+          BiometricResult.lockedOut,
+        ]),
+      );
     });
   });
 }

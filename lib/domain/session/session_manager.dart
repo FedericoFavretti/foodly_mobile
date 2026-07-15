@@ -105,16 +105,19 @@ class SessionManager {
     return _memoryUsuarioInfo;
   }
 
+  /// Limpia la sesión (token, perfil, usuario info) al cerrar sesión o
+  /// cuando el token expira. La preferencia de biometría NO se toca acá:
+  /// es una preferencia de este dispositivo ("¿querés desbloquear la app
+  /// con huella?"), no algo atado a la sesión activa, así que debe
+  /// sobrevivir a un logout/re-login.
   static Future<void> clearSession() async {
     _memoryToken = null;
     _memoryProfile = null;
-    _memoryBiometric = null;
     _memoryUsuarioInfo = null;
     if (_forceMemoryForTest) return;
     try {
       await _storage.delete(key: _keyToken);
       await _storage.delete(key: _keyProfile);
-      await _storage.delete(key: _keyBiometric);
       await _storage.delete(key: _keyUsuarioInfo);
     } catch (_) {}
   }
@@ -164,7 +167,7 @@ class SessionManager {
   static Future<int?> getClienteId() async {
     final usuarioJson = await getUsuarioInfoJson();
     if (usuarioJson == null) return null;
-    
+
     try {
       final data = jsonDecode(usuarioJson) as Map<String, dynamic>;
       return (data['id'] as num?)?.toInt();
