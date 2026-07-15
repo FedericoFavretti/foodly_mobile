@@ -193,7 +193,7 @@ class ApiCatalogDataSource implements CatalogDataSource {
 
     final backendMessage = ApiResponseHelpers.mapErrorMessage(response.body);
     if (response.statusCode == 400 &&
-        ApiResponseHelpers.isEmptySearchResult(backendMessage)) {
+        ApiResponseHelpers.isEmptyResultMessage(backendMessage)) {
       return [];
     }
 
@@ -312,7 +312,7 @@ class ApiCatalogDataSource implements CatalogDataSource {
 
     final backendMessage = ApiResponseHelpers.mapErrorMessage(response.body);
     if (response.statusCode == 400 &&
-        ApiResponseHelpers.isEmptySearchResult(backendMessage)) {
+        ApiResponseHelpers.isEmptyResultMessage(backendMessage)) {
       return [];
     }
 

@@ -73,6 +73,35 @@ void main() {
     expect(find.text('Editar perfil'), findsOneWidget);
   });
 
+  testWidgets(
+      'Editar perfil: "Número" y "Código postal" solo aceptan dígitos',
+      (tester) async {
+    await pumpProfile(tester);
+
+    await tester.tap(find.text('Editar'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    final numeroField = find.widgetWithText(TextFormField, 'Número');
+    expect(numeroField, findsOneWidget);
+    await tester.enterText(numeroField, '12a b3');
+    await tester.pump();
+    expect(
+      tester.widget<TextFormField>(numeroField).controller?.text,
+      '123',
+    );
+
+    final cpField = find.widgetWithText(TextFormField, 'Código postal');
+    expect(cpField, findsOneWidget);
+    await tester.enterText(cpField, '11a 000');
+    await tester.pump();
+    expect(
+      tester.widget<TextFormField>(cpField).controller?.text,
+      '11000',
+    );
+  });
+
   testWidgets('Cambiar contraseña abre el wizard', (tester) async {
     await pumpProfile(tester);
 

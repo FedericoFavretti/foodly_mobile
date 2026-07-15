@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -245,6 +244,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             TextFormField(
               controller: _numeroController,
               enabled: !_isLoading,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(hintText: 'Número'),
               validator: (v) => FormValidators.requiredField(v, 'el número'),
             ),
@@ -260,6 +261,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               controller: _codigoPostalController,
               enabled: !_isLoading,
               keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(hintText: 'Código postal'),
               validator: (v) =>
                   FormValidators.requiredField(v, 'el código postal'),

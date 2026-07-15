@@ -192,5 +192,30 @@ void main() {
       expect(reclamos.first.esAtendido, isTrue);
       expect(reclamos.first.localNombre, 'Sushi Bar');
     });
+
+    test(
+        'cliente sin pedidos (historial 400 "no encontrados") muestra lista '
+        'vacía, no un error', () async {
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/v1/pedidos/mi-historial');
+        return http.Response(
+          jsonEncode({
+            'mensaje':
+                'No se encontraron pedidos que coincidan con los criterios seleccionados.',
+            'status': 400,
+          }),
+          400,
+        );
+      });
+
+      final api = ApiClient(client: client);
+      final repository = ReclamoRepository(
+        api: api,
+        pedidoRepository: PedidoRepository(api: api),
+      );
+
+      final reclamos = await repository.listarMisReclamos();
+      expect(reclamos, isEmpty);
+    });
   });
 }

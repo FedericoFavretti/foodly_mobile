@@ -19,10 +19,15 @@ abstract final class ApiResponseHelpers {
     return null;
   }
 
-  static bool isEmptySearchResult(String? message) {
+  /// El backend usa 400 en vez de 200-con-lista-vacía para varios listados
+  /// (búsqueda de platos, historial de pedidos) cuando ningún resultado
+  /// coincide con el filtro pedido. El mensaje siempre sigue el patrón
+  /// "No se encontraron [algo] que coincidan/coincida con...", así que se
+  /// detecta genéricamente en vez de por texto exacto de un solo endpoint.
+  static bool isEmptyResultMessage(String? message) {
     if (message == null) return false;
     final normalized = message.toLowerCase();
-    return normalized.contains('no se encontraron platos') ||
-        normalized.contains('no se encontraron') && normalized.contains('búsqueda');
+    return normalized.contains('no se encontraron') &&
+        (normalized.contains('coincid') || normalized.contains('búsqueda'));
   }
 }
