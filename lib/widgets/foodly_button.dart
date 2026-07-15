@@ -46,12 +46,17 @@ class FoodlyButton extends StatelessWidget {
               leading!,
               const SizedBox(width: 10),
             ],
-            Text(
-              label,
-              style: FoodlyTheme.sansBold.copyWith(
-                letterSpacing: 0.8,
-                fontSize: 14,
-                color: isPrimary ? FoodlyColors.blanco : FoodlyColors.celeste,
+            Flexible(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: FoodlyTheme.sansBold.copyWith(
+                  letterSpacing: 0.8,
+                  fontSize: 14,
+                  color: isPrimary ? FoodlyColors.blanco : FoodlyColors.celeste,
+                ),
               ),
             ),
           ],
