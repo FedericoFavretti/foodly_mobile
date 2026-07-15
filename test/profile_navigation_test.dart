@@ -114,5 +114,9 @@ void main() {
     }
 
     expect(find.text('SOLICITAR CÓDIGO'), findsOneWidget);
+    expect(
+      find.textContaining('iniciaste sesión con Google'),
+      findsOneWidget,
+    );
   });
 }
