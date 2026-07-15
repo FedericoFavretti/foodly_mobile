@@ -22,7 +22,7 @@ import '../widgets/wavy_accent.dart';
 import 'local_detail_screen.dart';
 import 'platos_search_screen.dart';
 
-enum _FiltroRapido { todos, abiertos, mejorCalificados }
+enum _FiltroRapido { todos, abiertos }
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -40,15 +40,15 @@ class _MainScreenState extends State<MainScreen> {
   late Future<List<LocalModel>> _localesFuture;
   String _query = '';
   _FiltroRapido _filtroRapido = _FiltroRapido.todos;
-  LocalSortOption _sort = LocalSortOption.nombre;
+  LocalSortOption _sort = LocalSortOption.nombreAsc;
   String? _nombreCliente;
   Timer? _searchDebounce;
 
   LocalListFilter get _activeFilter => LocalListFilter.fromUi(
-        query: _query,
-        soloAbiertos: _soloAbiertos,
-        sort: _sortActivo,
-      );
+    query: _query,
+    soloAbiertos: _soloAbiertos,
+    sort: _sort,
+  );
 
   @override
   void initState() {
@@ -105,12 +105,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _applySort(LocalSortOption sort) {
-    setState(() {
-      _sort = sort;
-      if (_filtroRapido == _FiltroRapido.mejorCalificados) {
-        _filtroRapido = _FiltroRapido.todos;
-      }
-    });
+    setState(() => _sort = sort);
     _reloadLocales();
   }
 
@@ -120,18 +115,24 @@ class _MainScreenState extends State<MainScreen> {
       _searchController.clear();
       _query = '';
       _filtroRapido = _FiltroRapido.todos;
-      _sort = LocalSortOption.nombre;
+      _sort = LocalSortOption.nombreAsc;
     });
     _reloadLocales();
   }
 
   bool get _soloAbiertos => _filtroRapido == _FiltroRapido.abiertos;
 
-  LocalSortOption get _sortActivo {
-    if (_filtroRapido == _FiltroRapido.mejorCalificados) {
-      return LocalSortOption.calificacion;
+  String get _sortLabel {
+    switch (_sort) {
+      case LocalSortOption.nombreAsc:
+        return 'Orden: Nombre ↑';
+      case LocalSortOption.nombreDesc:
+        return 'Orden: Nombre ↓';
+      case LocalSortOption.calificacionDesc:
+        return 'Orden: Mejor calificados';
+      case LocalSortOption.calificacionAsc:
+        return 'Orden: Peor calificados';
     }
-    return _sort;
   }
 
   void _openSortSheet() {
@@ -155,8 +156,8 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 ),
                 RadioListTile<LocalSortOption>(
-                  title: const Text('Nombre'),
-                  value: LocalSortOption.nombre,
+                  title: const Text('Nombre (A-Z)'),
+                  value: LocalSortOption.nombreAsc,
                   groupValue: _sort,
                   activeColor: FoodlyColors.celeste,
                   onChanged: (value) {
@@ -166,8 +167,30 @@ class _MainScreenState extends State<MainScreen> {
                   },
                 ),
                 RadioListTile<LocalSortOption>(
-                  title: const Text('Calificación'),
-                  value: LocalSortOption.calificacion,
+                  title: const Text('Nombre (Z-A)'),
+                  value: LocalSortOption.nombreDesc,
+                  groupValue: _sort,
+                  activeColor: FoodlyColors.celeste,
+                  onChanged: (value) {
+                    if (value == null) return;
+                    Navigator.pop(context);
+                    _applySort(value);
+                  },
+                ),
+                RadioListTile<LocalSortOption>(
+                  title: const Text('Mejor calificados primero'),
+                  value: LocalSortOption.calificacionDesc,
+                  groupValue: _sort,
+                  activeColor: FoodlyColors.celeste,
+                  onChanged: (value) {
+                    if (value == null) return;
+                    Navigator.pop(context);
+                    _applySort(value);
+                  },
+                ),
+                RadioListTile<LocalSortOption>(
+                  title: const Text('Peor calificados primero'),
+                  value: LocalSortOption.calificacionAsc,
                   groupValue: _sort,
                   activeColor: FoodlyColors.celeste,
                   onChanged: (value) {
@@ -206,7 +229,9 @@ class _MainScreenState extends State<MainScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(child: _CatalogHero(nombreCliente: _nombreCliente)),
+            SliverToBoxAdapter(
+              child: _CatalogHero(nombreCliente: _nombreCliente),
+            ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -269,16 +294,7 @@ class _MainScreenState extends State<MainScreen> {
                       onTap: () => _applyFiltroRapido(_FiltroRapido.abiertos),
                     ),
                     FoodlyFilterChip(
-                      label: 'Mejor calificados',
-                      selected:
-                          _filtroRapido == _FiltroRapido.mejorCalificados,
-                      onTap: () =>
-                          _applyFiltroRapido(_FiltroRapido.mejorCalificados),
-                    ),
-                    FoodlyFilterChip(
-                      label: _sortActivo == LocalSortOption.calificacion
-                          ? 'Orden: Calificación'
-                          : 'Orden: Nombre',
+                      label: _sortLabel,
                       selected: false,
                       onTap: _openSortSheet,
                       showCheckmark: false,
@@ -308,8 +324,8 @@ class _MainScreenState extends State<MainScreen> {
                   final message = snapshot.error is ApiException
                       ? (snapshot.error as ApiException).userMessage
                       : snapshot.error is NetworkException
-                          ? (snapshot.error as NetworkException).userMessage
-                          : 'Ocurrió un error al cargar los locales.';
+                      ? (snapshot.error as NetworkException).userMessage
+                      : 'Ocurrió un error al cargar los locales.';
                   return SliverFillRemaining(
                     hasScrollBody: false,
                     child: ErrorState(
@@ -320,7 +336,9 @@ class _MainScreenState extends State<MainScreen> {
                 }
 
                 final allLocales = snapshot.data ?? [];
-                final destacados = CatalogFilter.destacados(locales: allLocales);
+                final destacados = CatalogFilter.destacados(
+                  locales: allLocales,
+                );
                 final locales = allLocales;
 
                 return SliverMainAxisGroup(
@@ -438,10 +456,7 @@ class _CatalogHero extends StatelessWidget {
           ),
           const Padding(
             padding: EdgeInsets.only(left: 20, bottom: 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: WavyAccent(),
-            ),
+            child: Align(alignment: Alignment.centerLeft, child: WavyAccent()),
           ),
           Container(
             height: 24,
@@ -457,10 +472,7 @@ class _CatalogHero extends StatelessWidget {
 }
 
 class _FeaturedSection extends StatelessWidget {
-  const _FeaturedSection({
-    required this.locales,
-    required this.onLocalTap,
-  });
+  const _FeaturedSection({required this.locales, required this.onLocalTap});
 
   final List<LocalModel> locales;
   final void Function(int localId) onLocalTap;

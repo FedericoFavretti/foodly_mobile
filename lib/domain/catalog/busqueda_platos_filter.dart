@@ -1,5 +1,5 @@
 /// Filtros server-side para `POST /clientes/busqueda` (equivalente web `buildSearchFilter`).
-enum PlatoSearchSort { none, nombre, precioAsc, precioDesc }
+enum PlatoSearchSort { none, nombreAsc, nombreDesc, precioAsc, precioDesc }
 
 class BusquedaPlatosFilter {
   const BusquedaPlatosFilter({
@@ -24,8 +24,12 @@ class BusquedaPlatosFilter {
       body['promocionActiva'] = true;
     }
     switch (sort) {
-      case PlatoSearchSort.nombre:
+      case PlatoSearchSort.nombreAsc:
         body['alfabetico'] = true;
+      case PlatoSearchSort.nombreDesc:
+        // El backend no tiene un flag para Z-A: se ordena client-side en
+        // CatalogGlobalSearch.fromResponse.
+        break;
       case PlatoSearchSort.precioAsc:
         body['precioMasBajo'] = true;
       case PlatoSearchSort.precioDesc:
@@ -45,15 +49,15 @@ class BusquedaPlatosFilter {
   /// client-side en [CatalogGlobalSearch], igual que ya se hace para el
   /// menú de un local.
   Map<String, String> toQueryParams({int? localId}) {
-    final params = <String, String>{
-      'tamanio': '100',
-    };
+    final params = <String, String>{'tamanio': '100'};
     if (soloPromociones) {
       params['promocionActiva'] = 'true';
     }
     switch (sort) {
-      case PlatoSearchSort.nombre:
+      case PlatoSearchSort.nombreAsc:
         params['alfabetico'] = 'true';
+      case PlatoSearchSort.nombreDesc:
+        break;
       case PlatoSearchSort.precioAsc:
         params['precioMasBajo'] = 'true';
       case PlatoSearchSort.precioDesc:

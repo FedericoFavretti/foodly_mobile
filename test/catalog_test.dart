@@ -27,11 +27,7 @@ void main() {
         'foto': 'https://cdn.test/logo.png',
         'imagenes': ['https://img.test/fachada.jpg'],
         'passwd': 'hash',
-        'direccion': {
-          'calle': 'Calle',
-          'numero': '1',
-          'ciudad': 'Montevideo',
-        },
+        'direccion': {'calle': 'Calle', 'numero': '1', 'ciudad': 'Montevideo'},
       };
 
       final local = LocalModel.fromJson(json);
@@ -170,10 +166,35 @@ void main() {
     test('ordena por calificación descendente', () {
       final result = CatalogFilter.filterLocales(
         locales: mockLocales,
-        sort: LocalSortOption.calificacion,
+        sort: LocalSortOption.calificacionDesc,
       );
 
       expect(result.first.nombre, 'Sushi MVD');
+    });
+
+    test('ordena por calificación ascendente', () {
+      final result = CatalogFilter.filterLocales(
+        locales: mockLocales,
+        sort: LocalSortOption.calificacionAsc,
+      );
+
+      expect(result.last.nombre, 'Sushi MVD');
+    });
+
+    test('ordena por nombre descendente (Z-A)', () {
+      final result = CatalogFilter.filterLocales(
+        locales: mockLocales,
+        sort: LocalSortOption.nombreDesc,
+      );
+
+      for (var i = 0; i < result.length - 1; i++) {
+        expect(
+          result[i].nombre.compareTo(result[i + 1].nombre) >= 0,
+          isTrue,
+          reason:
+              '${result[i].nombre} debería ir antes que ${result[i + 1].nombre}',
+        );
+      }
     });
 
     test('destacados retorna abiertos ordenados por calificación', () {
@@ -333,10 +354,7 @@ void main() {
       );
 
       // Debe lanzar ApiException para que la UI muestre error
-      expect(
-        () => repository.listarLocales(),
-        throwsA(isA<Exception>()),
-      );
+      expect(() => repository.listarLocales(), throwsA(isA<Exception>()));
     });
 
     test('API con catálogo real habilitado por defecto', () async {
@@ -425,36 +443,39 @@ void main() {
       expect(platos.first.localId, 3);
     });
 
-    test('API listar_locales envía query params de filtros server-side', () async {
-      Map<String, String>? capturedParams;
+    test(
+      'API listar_locales envía query params de filtros server-side',
+      () async {
+        Map<String, String>? capturedParams;
 
-      final client = MockClient((request) async {
-        expect(request.method, 'GET');
-        expect(request.url.path, '/api/v1/clientes/listar_locales');
-        capturedParams = request.url.queryParameters;
-        return http.Response(jsonEncode([]), 200);
-      });
+        final client = MockClient((request) async {
+          expect(request.method, 'GET');
+          expect(request.url.path, '/api/v1/clientes/listar_locales');
+          capturedParams = request.url.queryParameters;
+          return http.Response(jsonEncode([]), 200);
+        });
 
-      final repository = CatalogRepository(
-        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
-      );
+        final repository = CatalogRepository(
+          dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+        );
 
-      await repository.listarLocales(
-        filter: const LocalListFilter(
-          nombre: 'pizza',
-          soloAbiertos: true,
-          ordenarPor: 'calificacion',
-          direccion: 'desc',
-        ),
-      );
+        await repository.listarLocales(
+          filter: const LocalListFilter(
+            nombre: 'pizza',
+            soloAbiertos: true,
+            ordenarPor: 'calificacion',
+            direccion: 'desc',
+          ),
+        );
 
-      expect(capturedParams, {
-        'nombre': 'pizza',
-        'estaAbierto': 'true',
-        'ordenarPor': 'calificacion',
-        'direccion': 'desc',
-      });
-    });
+        expect(capturedParams, {
+          'nombre': 'pizza',
+          'estaAbierto': 'true',
+          'ordenarPor': 'calificacion',
+          'direccion': 'desc',
+        });
+      },
+    );
 
     test('API merge plato con promoción aplica descuento', () async {
       final body = jsonEncode({
@@ -522,123 +543,132 @@ void main() {
       expect(platos, isEmpty);
     });
 
-    test('respuesta 200 con promos inválidas devuelve platos sin merge', () async {
-      final body = jsonEncode({
-        'platos': [
-          {
-            'id': 10,
-            'nombre': 'Milanesa',
-            'descripcion': 'Con papas',
-            'precio': 450.0,
-            'disponible': true,
-            'imagenes': [],
-            'dtLocal': {'id': 3},
-          },
-        ],
-        'promociones': [
-          {'id': 'no-numerico', 'descuento': 10},
-        ],
-      });
-
-      final client = MockClient((request) async {
-        return http.Response(body, 200);
-      });
-
-      final repository = CatalogRepository(
-        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
-      );
-
-      final platos = await repository.platosDeLocal(3);
-
-      expect(platos.length, 1);
-      expect(platos.first.nombre, 'Milanesa');
-      expect(platos.first.tienePromocion, isFalse);
-    });
-
-    test('respuesta backend enriquecida + promociones merge badge y precio', () async {
-      // Forma real de ClienteService.buscarPlatosYPromociones tras el fix de platos.
-      final body = jsonEncode({
-        'platos': [
-          {
-            'id': 10,
-            'nombre': 'Milanesa',
-            'descripcion': 'Con papas',
-            'precio': 500.0,
-            'precioFinal': 400.0,
-            'tienePromocion': true,
-            'disponible': true,
-            'imagenes': [],
-            'dtLocal': {'id': 3},
-            'dtCategoria': {'id': 1, 'nombre': 'Principal', 'idLocal': 3},
-          },
-        ],
-        'promociones': [
-          {
-            'id': 99,
-            'descuento': 20.0,
-            'descripcion': '20% off',
-            'dtPlato': {
+    test(
+      'respuesta 200 con promos inválidas devuelve platos sin merge',
+      () async {
+        final body = jsonEncode({
+          'platos': [
+            {
               'id': 10,
               'nombre': 'Milanesa',
               'descripcion': 'Con papas',
-              'precio': 500.0,
+              'precio': 450.0,
               'disponible': true,
               'imagenes': [],
               'dtLocal': {'id': 3},
             },
-          },
-        ],
-      });
+          ],
+          'promociones': [
+            {'id': 'no-numerico', 'descuento': 10},
+          ],
+        });
 
-      final client = MockClient((request) async {
-        return http.Response(body, 200);
-      });
+        final client = MockClient((request) async {
+          return http.Response(body, 200);
+        });
 
-      final repository = CatalogRepository(
-        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
-      );
+        final repository = CatalogRepository(
+          dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+        );
 
-      final platos = await repository.platosDeLocal(3);
+        final platos = await repository.platosDeLocal(3);
 
-      expect(platos.length, 1);
-      expect(platos.first.tienePromocion, isTrue);
-      expect(platos.first.precioOriginal, 500);
-      expect(platos.first.precioFinal, 400);
-      expect(platos.first.descuentoPercent, 20);
-      expect(platos.first.promocionId, 99);
-      expect(platos.first.promocionTitulo, '20% off');
-    });
+        expect(platos.length, 1);
+        expect(platos.first.nombre, 'Milanesa');
+        expect(platos.first.tienePromocion, isFalse);
+      },
+    );
 
-    test('platos con promo del backend sin array promociones muestran descuento', () async {
-      final body = jsonEncode({
-        'platos': [
-          {
-            'id': 10,
-            'nombre': 'Milanesa',
-            'precio': 500.0,
-            'precioFinal': 400.0,
-            'tienePromocion': true,
-            'disponible': true,
-            'imagenes': [],
-            'dtLocal': {'id': 3},
-          },
-        ],
-        'promociones': [],
-      });
+    test(
+      'respuesta backend enriquecida + promociones merge badge y precio',
+      () async {
+        // Forma real de ClienteService.buscarPlatosYPromociones tras el fix de platos.
+        final body = jsonEncode({
+          'platos': [
+            {
+              'id': 10,
+              'nombre': 'Milanesa',
+              'descripcion': 'Con papas',
+              'precio': 500.0,
+              'precioFinal': 400.0,
+              'tienePromocion': true,
+              'disponible': true,
+              'imagenes': [],
+              'dtLocal': {'id': 3},
+              'dtCategoria': {'id': 1, 'nombre': 'Principal', 'idLocal': 3},
+            },
+          ],
+          'promociones': [
+            {
+              'id': 99,
+              'descuento': 20.0,
+              'descripcion': '20% off',
+              'dtPlato': {
+                'id': 10,
+                'nombre': 'Milanesa',
+                'descripcion': 'Con papas',
+                'precio': 500.0,
+                'disponible': true,
+                'imagenes': [],
+                'dtLocal': {'id': 3},
+              },
+            },
+          ],
+        });
 
-      final client = MockClient((request) async {
-        return http.Response(body, 200);
-      });
+        final client = MockClient((request) async {
+          return http.Response(body, 200);
+        });
 
-      final repository = CatalogRepository(
-        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
-      );
+        final repository = CatalogRepository(
+          dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+        );
 
-      final platos = await repository.platosDeLocal(3);
+        final platos = await repository.platosDeLocal(3);
 
-      expect(platos.single.descuentoPercent, 20);
-      expect(platos.single.precioFinal, 400);
-    });
+        expect(platos.length, 1);
+        expect(platos.first.tienePromocion, isTrue);
+        expect(platos.first.precioOriginal, 500);
+        expect(platos.first.precioFinal, 400);
+        expect(platos.first.descuentoPercent, 20);
+        expect(platos.first.promocionId, 99);
+        expect(platos.first.promocionTitulo, '20% off');
+      },
+    );
+
+    test(
+      'platos con promo del backend sin array promociones muestran descuento',
+      () async {
+        final body = jsonEncode({
+          'platos': [
+            {
+              'id': 10,
+              'nombre': 'Milanesa',
+              'precio': 500.0,
+              'precioFinal': 400.0,
+              'tienePromocion': true,
+              'disponible': true,
+              'imagenes': [],
+              'dtLocal': {'id': 3},
+            },
+          ],
+          'promociones': [],
+        });
+
+        final client = MockClient((request) async {
+          return http.Response(body, 200);
+        });
+
+        final repository = CatalogRepository(
+          dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+        );
+
+        final platos = await repository.platosDeLocal(3);
+
+        expect(platos.single.descuentoPercent, 20);
+        expect(platos.single.precioFinal, 400);
+      },
+    );
 
     test('500 en busqueda intenta fallback GET platos del local', () async {
       final client = MockClient((request) async {
@@ -676,36 +706,39 @@ void main() {
       expect(platos.first.nombre, 'Pizza');
     });
 
-    test('obtenerLocal pega a GET /locales/{id}/perfil (trae teléfonos)', () async {
-      final client = MockClient((request) async {
-        expect(request.method, 'GET');
-        expect(request.url.path, '/api/v1/locales/7/perfil');
-        return http.Response(
-          jsonEncode({
-            'id': 7,
-            'nombre': 'Pizza House',
-            'descripcion': '',
-            'calificacionGlobal': 4.5,
-            'estaAbierto': true,
-            'imagenes': [],
-            'celular': '+598991234567',
-            'telefonoFijo': '+59824871234',
-          }),
-          200,
+    test(
+      'obtenerLocal pega a GET /locales/{id}/perfil (trae teléfonos)',
+      () async {
+        final client = MockClient((request) async {
+          expect(request.method, 'GET');
+          expect(request.url.path, '/api/v1/locales/7/perfil');
+          return http.Response(
+            jsonEncode({
+              'id': 7,
+              'nombre': 'Pizza House',
+              'descripcion': '',
+              'calificacionGlobal': 4.5,
+              'estaAbierto': true,
+              'imagenes': [],
+              'celular': '+598991234567',
+              'telefonoFijo': '+59824871234',
+            }),
+            200,
+          );
+        });
+
+        final repository = CatalogRepository(
+          dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
         );
-      });
 
-      final repository = CatalogRepository(
-        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
-      );
+        final local = await repository.obtenerLocal(7);
 
-      final local = await repository.obtenerLocal(7);
-
-      expect(local, isNotNull);
-      expect(local!.nombre, 'Pizza House');
-      expect(local.celular, '+598991234567');
-      expect(local.telefonoFijo, '+59824871234');
-    });
+        expect(local, isNotNull);
+        expect(local!.nombre, 'Pizza House');
+        expect(local.celular, '+598991234567');
+        expect(local.telefonoFijo, '+59824871234');
+      },
+    );
 
     test('obtenerLocal cae a listar_locales si falla el perfil', () async {
       final client = MockClient((request) async {
@@ -763,7 +796,7 @@ void main() {
       final filter = LocalListFilter.fromUi(
         query: ' burger ',
         soloAbiertos: true,
-        sort: LocalSortOption.nombre,
+        sort: LocalSortOption.nombreAsc,
       );
 
       expect(filter.toRequestBody(), {
@@ -772,6 +805,33 @@ void main() {
         'ordenarPor': 'nombre',
         'direccion': 'asc',
       });
+    });
+
+    test('fromUi respeta la dirección elegida para cada criterio', () {
+      expect(
+        LocalListFilter.fromUi(
+          query: '',
+          soloAbiertos: false,
+          sort: LocalSortOption.nombreDesc,
+        ).toRequestBody(),
+        {'ordenarPor': 'nombre', 'direccion': 'desc'},
+      );
+      expect(
+        LocalListFilter.fromUi(
+          query: '',
+          soloAbiertos: false,
+          sort: LocalSortOption.calificacionAsc,
+        ).toRequestBody(),
+        {'ordenarPor': 'calificacion', 'direccion': 'asc'},
+      );
+      expect(
+        LocalListFilter.fromUi(
+          query: '',
+          soloAbiertos: false,
+          sort: LocalSortOption.calificacionDesc,
+        ).toRequestBody(),
+        {'ordenarPor': 'calificacion', 'direccion': 'desc'},
+      );
     });
   });
 
@@ -790,16 +850,8 @@ void main() {
       final merged = CatalogSearchMerge.merge(
         platos: [plato],
         promociones: [
-          PromocionModel(
-            id: 1,
-            descuento: 10,
-            plato: plato,
-          ),
-          PromocionModel(
-            id: 2,
-            descuento: 25,
-            plato: plato,
-          ),
+          PromocionModel(id: 1, descuento: 10, plato: plato),
+          PromocionModel(id: 2, descuento: 25, plato: plato),
         ],
       );
 
@@ -825,6 +877,13 @@ void main() {
 
     test('toRequestBody vacío sin query ni filtros', () {
       expect(const BusquedaPlatosFilter().toRequestBody(), isEmpty);
+    });
+
+    test('nombreDesc no manda ningún flag al backend (no existe "Z-A" en la '
+        'API): el orden se aplica client-side', () {
+      const filter = BusquedaPlatosFilter(sort: PlatoSearchSort.nombreDesc);
+      expect(filter.toRequestBody(), isEmpty);
+      expect(filter.toQueryParams(), {'tamanio': '100'});
     });
   });
 
@@ -900,6 +959,52 @@ void main() {
       expect(promos.length, 1);
       expect(promos.first.plato.nombre, 'Con promo');
     });
+
+    test(
+      'sort ordena los items client-side (nombreDesc, sin flag de backend)',
+      () {
+        final decoded = {
+          'platos': [
+            {
+              'id': 1,
+              'nombre': 'Alfajor',
+              'precio': 100.0,
+              'disponible': true,
+              'imagenes': [],
+              'dtLocal': {'id': 1, 'nombre': 'Local A'},
+            },
+            {
+              'id': 2,
+              'nombre': 'Zapallitos',
+              'precio': 200.0,
+              'disponible': true,
+              'imagenes': [],
+              'dtLocal': {'id': 1, 'nombre': 'Local A'},
+            },
+            {
+              'id': 3,
+              'nombre': 'Milanesa',
+              'precio': 300.0,
+              'disponible': true,
+              'imagenes': [],
+              'dtLocal': {'id': 1, 'nombre': 'Local A'},
+            },
+          ],
+          'promociones': [],
+        };
+
+        final desc = CatalogGlobalSearch.fromResponse(
+          decoded,
+          sort: PlatoSearchSort.nombreDesc,
+        );
+
+        expect(desc.map((i) => i.plato.nombre).toList(), [
+          'Zapallitos',
+          'Milanesa',
+          'Alfajor',
+        ]);
+      },
+    );
   });
 
   group('CatalogRepository buscarPlatos', () {
@@ -917,8 +1022,7 @@ void main() {
       expect(items.first.localNombre, 'Pizza Napoli');
     });
 
-    test(
-        'API no manda "nombre" (backend matchea palabra completa, no '
+    test('API no manda "nombre" (backend matchea palabra completa, no '
         'substring) y pide la página máxima', () async {
       Map<String, String>? capturedParams;
 
@@ -954,52 +1058,51 @@ void main() {
         ),
       );
 
-      expect(capturedParams, {
-        'tamanio': '100',
-        'precioMasAlto': 'true',
-      });
+      expect(capturedParams, {'tamanio': '100', 'precioMasAlto': 'true'});
       expect(items.length, 1);
       expect(items.first.localNombre, 'Burger House');
     });
 
-    test('filtra client-side por texto parcial (el backend no lo hace)',
-        () async {
-      final body = jsonEncode({
-        'platos': [
-          {
-            'id': 10,
-            'nombre': 'Bacon Cheese Superburger',
-            'precio': 400.0,
-            'disponible': true,
-            'imagenes': [],
-            'dtLocal': {'id': 1, 'nombre': 'Burger House'},
-          },
-          {
-            'id': 11,
-            'nombre': 'Milanesa',
-            'precio': 350.0,
-            'disponible': true,
-            'imagenes': [],
-            'dtLocal': {'id': 1, 'nombre': 'Burger House'},
-          },
-        ],
-        'promociones': [],
-      });
+    test(
+      'filtra client-side por texto parcial (el backend no lo hace)',
+      () async {
+        final body = jsonEncode({
+          'platos': [
+            {
+              'id': 10,
+              'nombre': 'Bacon Cheese Superburger',
+              'precio': 400.0,
+              'disponible': true,
+              'imagenes': [],
+              'dtLocal': {'id': 1, 'nombre': 'Burger House'},
+            },
+            {
+              'id': 11,
+              'nombre': 'Milanesa',
+              'precio': 350.0,
+              'disponible': true,
+              'imagenes': [],
+              'dtLocal': {'id': 1, 'nombre': 'Burger House'},
+            },
+          ],
+          'promociones': [],
+        });
 
-      final client = MockClient((request) async {
-        return http.Response(body, 200);
-      });
+        final client = MockClient((request) async {
+          return http.Response(body, 200);
+        });
 
-      final repository = CatalogRepository(
-        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
-      );
+        final repository = CatalogRepository(
+          dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+        );
 
-      final items = await repository.buscarPlatos(
-        const BusquedaPlatosFilter(query: 'burger'),
-      );
+        final items = await repository.buscarPlatos(
+          const BusquedaPlatosFilter(query: 'burger'),
+        );
 
-      expect(items.length, 1);
-      expect(items.first.plato.nombre, 'Bacon Cheese Superburger');
-    });
+        expect(items.length, 1);
+        expect(items.first.plato.nombre, 'Bacon Cheese Superburger');
+      },
+    );
   });
 }
