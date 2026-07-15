@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -297,6 +296,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextFormField(
                 controller: _numeroController,
                 enabled: !_isLoading,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(hintText: 'Número'),
                 validator: (v) => FormValidators.requiredField(v, 'el número'),
               ),
@@ -311,6 +312,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextFormField(
                 controller: _codigoPostalController,
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 enabled: !_isLoading,
                 decoration: const InputDecoration(hintText: 'Código postal (opcional)'),
               ),
