@@ -28,8 +28,7 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
   late final TextEditingController _emailController;
   final _accountRepository = AccountRepository();
   bool _isLoading = false;
-  bool _isResending = false;
-  bool _activated = false;
+  bool _emailEnviado = false;
 
   /// Segundos restantes de cooldown para el botón Reenviar.
   int _resendCooldown = 0;
@@ -63,39 +62,19 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
     });
   }
 
-  Future<void> _reenviar() async {
-    if (_emailController.text.trim().isEmpty) {
-      _showMessage('Ingresá tu correo para reenviar el email.');
-      return;
-    }
-
-    setState(() => _isResending = true);
-    try {
-      await _accountRepository.reenviarActivacion(_emailController.text);
-      if (!mounted) return;
-      _showMessage('Te reenviamos el correo de activación. Revisá tu bandeja.');
-      _startCooldown();
-    } on ApiException catch (error) {
-      _showMessage(error.userMessage);
-    } on NetworkException catch (error) {
-      _showMessage(error.userMessage);
-    } finally {
-      if (mounted) setState(() => _isResending = false);
-    }
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
-      _activated = false;
+      _emailEnviado = false;
     });
 
     try {
       await _accountRepository.reenviarActivacion(_emailController.text);
       if (!mounted) return;
-      setState(() => _activated = true);
+      setState(() => _emailEnviado = true);
+      _startCooldown();
     } on ApiException catch (error) {
       _showMessage(error.userMessage);
     } on NetworkException catch (error) {
@@ -109,15 +88,6 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
-    );
-  }
-
-  void _goToLogin() {
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      LoginScreen.routeName,
-      (_) => false,
-      arguments: AccountRepository.accountActivatedMessage,
     );
   }
 
@@ -141,14 +111,12 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _activated
-                  ? 'Tu cuenta ya está activa.'
-                  : 'Confirmá el correo de tu cuenta para poder iniciar sesión.',
+              'Para activar tu cuenta, revisá el correo que te enviamos al registrarte y hacé clic en el link de activación.',
               textAlign: TextAlign.center,
-              style: FoodlyTheme.serifSection.copyWith(fontSize: 16),
+              style: FoodlyTheme.serifSection.copyWith(fontSize: 15),
             ),
             const SizedBox(height: 24),
-            if (_activated) ...[
+            if (_emailEnviado)
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -159,7 +127,7 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
                   ),
                 ),
                 child: Text(
-                  AccountRepository.accountActivatedMessage,
+                  'Te reenviamos el correo de activación. Revisá tu bandeja de entrada y hacé clic en el link para activar tu cuenta.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 14,
@@ -168,56 +136,52 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              enabled: !_isLoading,
+              decoration: const InputDecoration(
+                hintText: 'Correo electrónico',
+              ),
+              validator: FormValidators.email,
+            ),
+            const SizedBox(height: 24),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
               FoodlyButton(
-                label: 'IR AL LOGIN',
-                onPressed: _goToLogin,
+                label: 'REENVIAR CORREO DE ACTIVACIÓN',
+                onPressed: _resendCooldown > 0 ? null : _submit,
               ),
-            ] else ...[
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.email],
-                enabled: !_isLoading,
-                decoration: const InputDecoration(
-                  hintText: 'Correo electrónico',
-                ),
-                validator: FormValidators.email,
-              ),
-              const SizedBox(height: 24),
-              if (_isLoading)
-                const Center(child: CircularProgressIndicator())
-              else
-                FoodlyButton(
-                  label: 'ACTIVAR CUENTA',
-                  onPressed: _submit,
-                ),
-              const SizedBox(height: 16),
-              // ── Reenviar correo ────────────────────────────────────────
-              _ResendEmailButton(
-                isLoading: _isResending,
-                cooldownSeconds: _resendCooldown,
-                onPressed: _isLoading || _isResending || _resendCooldown > 0
-                    ? null
-                    : _reenviar,
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: _isLoading
-                    ? null
-                    : () => Navigator.pushReplacementNamed(
-                          context,
-                          LoginScreen.routeName,
-                        ),
-                child: Text(
-                  'Volver al inicio de sesión',
-                  style: FoodlyTheme.sansBold.copyWith(
-                    color: FoodlyColors.celeste,
-                    fontSize: 14,
-                  ),
+            if (_resendCooldown > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Podés reenviar en $_resendCooldown segundos',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  color: FoodlyColors.grisIntermedio,
                 ),
               ),
             ],
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _isLoading
+                  ? null
+                  : () => Navigator.pushReplacementNamed(
+                        context,
+                        LoginScreen.routeName,
+                      ),
+              child: Text(
+                'Ya activé mi cuenta — Iniciar sesión',
+                style: FoodlyTheme.sansBold.copyWith(
+                  color: FoodlyColors.celeste,
+                  fontSize: 14,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -225,56 +189,3 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
   }
 }
 
-class _ResendEmailButton extends StatelessWidget {
-  const _ResendEmailButton({
-    required this.isLoading,
-    required this.cooldownSeconds,
-    required this.onPressed,
-  });
-
-  final bool isLoading;
-  final int cooldownSeconds;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = cooldownSeconds > 0
-        ? 'Reenviar correo (${cooldownSeconds}s)'
-        : '¿No recibiste el correo? Reenviar';
-
-    if (isLoading) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Enviando…',
-            style: GoogleFonts.nunito(
-              fontSize: 13,
-              color: FoodlyColors.grisIntermedio,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return TextButton(
-      onPressed: onPressed,
-      child: Text(
-        label,
-        style: GoogleFonts.nunito(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: onPressed != null
-              ? FoodlyColors.amarillo
-              : FoodlyColors.grisIntermedio,
-        ),
-      ),
-    );
-  }
-}
