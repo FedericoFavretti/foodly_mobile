@@ -51,6 +51,12 @@ class PlatformGoogleSignInService implements GoogleSignInService {
     try {
       final account = await _signIn.authenticate(scopeHint: _scopes);
       final authz = await account.authorizationClient.authorizeScopes(_scopes);
+
+      // google_sign_in v7: `authorizeScopes` solo expone el OAuth access token.
+      // El backend lo recibe en el campo `idToken` y lo valida llamando a
+      // Google's UserInfo endpoint (oauth2/v3/userinfo).
+      // Si en el futuro el backend cambia a validar JWT ID token, habrá que
+      // migrar al flujo serverAuthCode.
       final accessToken = authz.accessToken.trim();
       if (accessToken.isEmpty) return null;
       return GoogleSignInTokens(accessToken: accessToken);

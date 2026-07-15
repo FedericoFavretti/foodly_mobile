@@ -4,12 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../core/auth/biometric_service.dart';
 import '../core/auth/google_sign_in_service.dart';
-import '../core/auth/post_login_helper.dart';
 import '../core/errors/api_exception.dart';
 import '../core/validators/form_validators.dart';
-import '../data/models/direccion_model.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/cliente_repository.dart';
 import '../theme/foodly_colors.dart';
@@ -19,7 +16,7 @@ import '../widgets/foodly_button.dart';
 import '../widgets/google_icon.dart';
 import '../widgets/password_field.dart';
 import 'activate_account_screen.dart';
-import 'main_screen.dart';
+import 'google_registration_completion_screen.dart';
 import '../widgets/wavy_accent.dart';
 
 const _passwordHint = [
@@ -56,7 +53,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   final _clienteRepository = ClienteRepository();
   final _authRepository = AuthRepository();
-  final _biometricService = LocalAuthBiometricService();
   late final GoogleSignInService _googleSignInService =
       widget.googleSignInService ?? PlatformGoogleSignInService();
   final _imagePicker = ImagePicker();
@@ -96,24 +92,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  bool _validateGoogleRegistrationFields() {
-    final checks = <String? Function()>[
-      () => FormValidators.cedula(_documentoController.text),
-      () => FormValidators.requiredField(_calleController.text, 'la calle'),
-      () => FormValidators.requiredField(_numeroController.text, 'el número'),
-      () => FormValidators.requiredField(_ciudadController.text, 'la ciudad'),
-    ];
-
-    for (final check in checks) {
-      final error = check();
-      if (error != null) {
-        _showMessage(error);
-        return false;
-      }
-    }
-    return true;
-  }
-
   Future<void> _registerWithGoogle() async {
     if (!_googleConfigured) {
       _showMessage(
@@ -121,48 +99,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return;
     }
-    if (!_validateGoogleRegistrationFields()) return;
 
     setState(() => _isLoading = true);
     try {
-      // Paso 1: obtener idToken de Google
+      // Paso 1: obtener token de Google
       final tokens = await _googleSignInService.signIn();
       if (tokens == null) return;
 
-      // Paso 2a: iniciar registro — verifica que el email no exista y obtiene tokenRegistro
+      // Paso 2: iniciar registro — verifica email y devuelve tokenRegistro + datos de Google
       final pendiente = await _authRepository.iniciarRegistroGoogle(
         idToken: tokens.accessToken,
       );
 
-      final direccion = DireccionModel(
-        calle: _calleController.text.trim(),
-        numero: _numeroController.text.trim(),
-        ciudad: _ciudadController.text.trim(),
-        codigoPostal: _codigoPostalController.text.trim().isEmpty
-            ? null
-            : _codigoPostalController.text.trim(),
-      );
-
-      // Paso 2b: completar registro con datos complementarios (foto opcional)
-      await _authRepository.completarRegistroGoogle(
-        tokenRegistro: pendiente.tokenRegistro,
-        documento: _documentoController.text.trim(),
-        direccion: direccion,
-        aceptaTerminos: true,
-        fotoBytes: _fotoBytes != null ? List<int>.from(_fotoBytes!) : null,
-        fotoFilename: _fotoFilename,
-      );
-
       if (!mounted) return;
-      await offerBiometricIfNeeded(context, _biometricService);
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, MainScreen.routeName);
+      // Paso 3: navegar a la pantalla de completar registro con los datos de Google
+      Navigator.pushReplacementNamed(
+        context,
+        GoogleRegistrationCompletionScreen.routeName,
+        arguments: pendiente,
+      );
     } on ApiException catch (error) {
       _showMessage(error.userMessage);
     } on NetworkException catch (error) {
       _showMessage(error.userMessage);
     } catch (_) {
-      _showMessage('No se pudo completar el registro con Google.');
+      _showMessage('No se pudo iniciar el registro con Google.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -170,10 +131,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_fotoBytes == null) {
-      _showMessage('Seleccioná una foto de perfil para completar el registro.');
-      return;
-    }
 
     setState(() => _isLoading = true);
     try {
@@ -278,7 +235,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ],
               const SizedBox(height: 8),
               Text(
-                'Completá documento y dirección antes de registrarte con Google',
+                'Vas a completar tus datos en el siguiente paso',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.nunito(
                   fontSize: 12,
@@ -384,7 +341,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 onPressed: _isLoading ? null : _pickPhoto,
                 icon: const Icon(Icons.photo_outlined),
                 label: Text(
-                  _fotoFilename ?? 'Foto de perfil *',
+                  _fotoFilename ?? 'Foto de perfil (opcional)',
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

@@ -66,7 +66,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _cpController.text = direccion.codigoPostal ?? '';
       }
     } catch (_) {
-      // El usuario completa manualmente.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'No pudimos cargar tu dirección guardada. Completá los campos manualmente.'),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loadingProfile = false);
     }

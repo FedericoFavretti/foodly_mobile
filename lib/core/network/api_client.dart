@@ -158,6 +158,9 @@ class ApiClient {
   }) async {
     final headers = <String, String>{
       'Accept': 'application/json',
+      // Permite al backend distinguir solicitudes mobile de web y usar
+      // las URLs de retorno de Mercado Pago correctas (foodly:// vs https://).
+      'X-Foodly-Client': 'mobile',
     };
     if (jsonContentType) {
       headers['Content-Type'] = 'application/json';

@@ -15,6 +15,7 @@ class PedidoCard extends StatefulWidget {
     this.reclamoEnviado = false,
     this.onCalificar,
     this.calificarLabel,
+    this.onReintentarPago,
   });
 
   final PedidoResponseModel pedido;
@@ -23,6 +24,9 @@ class PedidoCard extends StatefulWidget {
   final bool reclamoEnviado;
   final VoidCallback? onCalificar;
   final String? calificarLabel;
+  /// Callback para reintentar pago MP desde el historial.
+  /// Cuando está presente se muestra el botón "Reintentar pago".
+  final VoidCallback? onReintentarPago;
 
   @override
   State<PedidoCard> createState() => _PedidoCardState();
@@ -273,6 +277,13 @@ class _PedidoCardState extends State<PedidoCard> {
                       foreground: FoodlyColors.celeste,
                       onPressed: widget.onCalificar,
                     ),
+                  if (widget.onReintentarPago != null)
+                    _ActionButton(
+                      label: 'Reintentar pago',
+                      icon: Icons.payment,
+                      foreground: FoodlyColors.amarillo,
+                      onPressed: widget.onReintentarPago,
+                    ),
                 ],
               ),
             ],
@@ -299,7 +310,8 @@ class _PedidoCardState extends State<PedidoCard> {
       widget.onCancel != null ||
       widget.onReclamar != null ||
       widget.reclamoEnviado ||
-      widget.onCalificar != null;
+      widget.onCalificar != null ||
+      widget.onReintentarPago != null;
 }
 
 class _EstadoBadge extends StatelessWidget {

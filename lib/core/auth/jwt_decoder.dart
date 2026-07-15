@@ -25,7 +25,7 @@ abstract final class JwtDecoder {
 
   /// Mobile solo admite clientes. El backend hoy puede emitir ROLE_USER.
   static bool isClienteRole(String? role) {
-    if (role == null || role.isEmpty) return true;
+    if (role == null || role.isEmpty) return false;
     final upper = role.toUpperCase();
     if (upper.contains('ADMIN') || upper.contains('LOCAL')) return false;
     return upper.contains('CLIENTE') || upper == 'ROLE_USER' || upper == 'USER';

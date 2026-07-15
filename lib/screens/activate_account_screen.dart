@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -26,7 +28,12 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
   late final TextEditingController _emailController;
   final _accountRepository = AccountRepository();
   bool _isLoading = false;
+  bool _isResending = false;
   bool _activated = false;
+
+  /// Segundos restantes de cooldown para el botón Reenviar.
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
 
   @override
   void initState() {
@@ -37,7 +44,44 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
   @override
   void dispose() {
     _emailController.dispose();
+    _cooldownTimer?.cancel();
     super.dispose();
+  }
+
+  void _startCooldown({int seconds = 60}) {
+    setState(() => _resendCooldown = seconds);
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() {
+        _resendCooldown--;
+        if (_resendCooldown <= 0) t.cancel();
+      });
+    });
+  }
+
+  Future<void> _reenviar() async {
+    if (_emailController.text.trim().isEmpty) {
+      _showMessage('Ingresá tu correo para reenviar el email.');
+      return;
+    }
+
+    setState(() => _isResending = true);
+    try {
+      await _accountRepository.reenviarActivacion(_emailController.text);
+      if (!mounted) return;
+      _showMessage('Te reenviamos el correo de activación. Revisá tu bandeja.');
+      _startCooldown();
+    } on ApiException catch (error) {
+      _showMessage(error.userMessage);
+    } on NetworkException catch (error) {
+      _showMessage(error.userMessage);
+    } finally {
+      if (mounted) setState(() => _isResending = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -148,7 +192,16 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
                   label: 'ACTIVAR CUENTA',
                   onPressed: _submit,
                 ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              // ── Reenviar correo ────────────────────────────────────────
+              _ResendEmailButton(
+                isLoading: _isResending,
+                cooldownSeconds: _resendCooldown,
+                onPressed: _isLoading || _isResending || _resendCooldown > 0
+                    ? null
+                    : _reenviar,
+              ),
+              const SizedBox(height: 16),
               TextButton(
                 onPressed: _isLoading
                     ? null
@@ -166,6 +219,60 @@ class _ActivateAccountScreenState extends State<ActivateAccountScreen> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ResendEmailButton extends StatelessWidget {
+  const _ResendEmailButton({
+    required this.isLoading,
+    required this.cooldownSeconds,
+    required this.onPressed,
+  });
+
+  final bool isLoading;
+  final int cooldownSeconds;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = cooldownSeconds > 0
+        ? 'Reenviar correo (${cooldownSeconds}s)'
+        : '¿No recibiste el correo? Reenviar';
+
+    if (isLoading) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Enviando…',
+            style: GoogleFonts.nunito(
+              fontSize: 13,
+              color: FoodlyColors.grisIntermedio,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return TextButton(
+      onPressed: onPressed,
+      child: Text(
+        label,
+        style: GoogleFonts.nunito(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: onPressed != null
+              ? FoodlyColors.amarillo
+              : FoodlyColors.grisIntermedio,
         ),
       ),
     );
