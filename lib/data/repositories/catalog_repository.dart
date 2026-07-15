@@ -17,6 +17,7 @@ import '../models/promocion_model.dart';
 
 abstract class CatalogDataSource {
   Future<List<LocalModel>> listarLocales({LocalListFilter? filter});
+  Future<LocalModel?> obtenerLocal(int localId);
   Future<List<PlatoModel>> listarPlatosDeLocal(int localId);
   Future<List<PlatoBusquedaItem>> buscarPlatos(BusquedaPlatosFilter filter);
 }
@@ -41,6 +42,14 @@ class MockCatalogDataSource implements CatalogDataSource {
       soloAbiertos: soloAbiertos,
       sort: sort,
     );
+  }
+
+  @override
+  Future<LocalModel?> obtenerLocal(int localId) async {
+    for (final local in mockLocales) {
+      if (local.id == localId) return local;
+    }
+    return null;
   }
 
   @override
@@ -135,6 +144,38 @@ class ApiCatalogDataSource implements CatalogDataSource {
       userMessage: 'No pudimos cargar los locales. Intentalo más tarde.',
       debugInfo: response.body,
     );
+  }
+
+  /// Perfil público de un local — único endpoint que trae `celular` y
+  /// `telefonoFijo`. Si falla, cae a buscar el local en `listarLocales`
+  /// (sin teléfonos) para no romper la pantalla de menú.
+  @override
+  Future<LocalModel?> obtenerLocal(int localId) async {
+    try {
+      final response = await _api.get(
+        ApiConstants.localPerfilEndpoint(localId),
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200 &&
+          response.body.isNotEmpty &&
+          response.body != 'null') {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return LocalModel.fromJson(decoded);
+        }
+      }
+
+      if (response.statusCode == 404) return null;
+    } catch (_) {
+      // Sigue al fallback de abajo.
+    }
+
+    final locales = await listarLocales();
+    for (final local in locales) {
+      if (local.id == localId) return local;
+    }
+    return null;
   }
 
   @override
@@ -298,13 +339,7 @@ class CatalogRepository {
   Future<List<LocalModel>> listarLocales({LocalListFilter? filter}) =>
       _dataSource.listarLocales(filter: filter);
 
-  Future<LocalModel?> obtenerLocal(int id) async {
-    final locales = await _dataSource.listarLocales();
-    for (final local in locales) {
-      if (local.id == id) return local;
-    }
-    return null;
-  }
+  Future<LocalModel?> obtenerLocal(int id) => _dataSource.obtenerLocal(id);
 
   Future<List<PlatoModel>> platosDeLocal(int localId) =>
       _dataSource.listarPlatosDeLocal(localId);

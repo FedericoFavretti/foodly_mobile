@@ -10,6 +10,8 @@ class LocalModel {
     required this.imagenes,
     this.foto,
     this.direccion,
+    this.celular,
+    this.telefonoFijo,
   });
 
   final int id;
@@ -20,6 +22,10 @@ class LocalModel {
   final List<String> imagenes;
   final String? foto;
   final DireccionModel? direccion;
+  /// E.164 completo (ej. `+598991234567`), de `GET /locales/{id}/perfil`.
+  final String? celular;
+  /// E.164 completo, siempre Uruguay (`+598...`), de `GET /locales/{id}/perfil`.
+  final String? telefonoFijo;
 
   /// Misma prioridad que el frontend web: `foto` (logo) y luego `imagenes[0]`.
   String? get imagenPrincipal {
@@ -45,6 +51,26 @@ class LocalModel {
       direccion: direccionJson is Map<String, dynamic>
           ? DireccionModel.fromJson(direccionJson)
           : null,
+      celular: json['celular'] as String?,
+      telefonoFijo: json['telefonoFijo'] as String?,
+    );
+  }
+
+  LocalModel copyWith({
+    String? celular,
+    String? telefonoFijo,
+  }) {
+    return LocalModel(
+      id: id,
+      nombre: nombre,
+      descripcion: descripcion,
+      calificacionGlobal: calificacionGlobal,
+      estaAbierto: estaAbierto,
+      imagenes: imagenes,
+      foto: foto,
+      direccion: direccion,
+      celular: celular ?? this.celular,
+      telefonoFijo: telefonoFijo ?? this.telefonoFijo,
     );
   }
 }

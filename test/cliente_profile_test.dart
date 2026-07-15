@@ -191,6 +191,72 @@ void main() {
     expect(cached, contains('"foto":"https://cdn.cloudinary.com/nueva-foto.jpg"'));
   });
 
+  test('actualizarPerfil manda celular solo si viene con contenido', () async {
+    await SessionManager.saveToken('test.token');
+
+    String? cuerpoCapturado;
+    final client = MockClient((request) async {
+      cuerpoCapturado = utf8.decode(request.bodyBytes, allowMalformed: true);
+      return http.Response(
+        jsonEncode({
+          'id': 7,
+          'email': 'cliente@test.com',
+          'nombre': 'Juan',
+          'apellido': 'Pérez',
+        }),
+        200,
+      );
+    });
+
+    final repository = ClienteProfileRepository(api: ApiClient(client: client));
+    await repository.actualizarPerfil(
+      const ActualizarPerfilData(
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        calle: 'Calle',
+        numero: '1',
+        ciudad: 'Montevideo',
+        codigoPostal: '11000',
+        celular: '+598991234567',
+      ),
+    );
+
+    expect(cuerpoCapturado, contains('"celular":"+598991234567"'));
+  });
+
+  test('actualizarPerfil no manda la clave celular si viene vacío', () async {
+    await SessionManager.saveToken('test.token');
+
+    String? cuerpoCapturado;
+    final client = MockClient((request) async {
+      cuerpoCapturado = utf8.decode(request.bodyBytes, allowMalformed: true);
+      return http.Response(
+        jsonEncode({
+          'id': 7,
+          'email': 'cliente@test.com',
+          'nombre': 'Juan',
+          'apellido': 'Pérez',
+        }),
+        200,
+      );
+    });
+
+    final repository = ClienteProfileRepository(api: ApiClient(client: client));
+    await repository.actualizarPerfil(
+      const ActualizarPerfilData(
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        calle: 'Calle',
+        numero: '1',
+        ciudad: 'Montevideo',
+        codigoPostal: '11000',
+        celular: '',
+      ),
+    );
+
+    expect(cuerpoCapturado, isNot(contains('celular')));
+  });
+
   test('actualizarPerfil con 204 sin body usa fallback local', () async {
     await SessionManager.saveToken('test.token');
     await SessionManager.saveProfileJson(jsonEncode({

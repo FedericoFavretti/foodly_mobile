@@ -50,6 +50,10 @@ abstract final class ApiConstants {
   static String platosLocalFallbackEndpoint(int localId) =>
       '/api/v1/locales/busqueda_plato_local/$localId';
 
+  /// Perfil público de un local (incluye `celular`/`telefonoFijo`).
+  static String localPerfilEndpoint(int localId) =>
+      '/api/v1/locales/$localId/perfil';
+
   // ── Pedidos ───────────────────────────────────────────────────────────────
   static const pedidosEndpoint = '/api/v1/pedidos';
   static const historialPedidosEndpoint = '/api/v1/pedidos/mi-historial';

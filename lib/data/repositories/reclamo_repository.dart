@@ -19,13 +19,11 @@ class ReclamoRepository {
     required int pedidoId,
     required String motivo,
     required String tipoCompensacion,
-    double? montoReintegro,
   }) async {
     final body = <String, dynamic>{
       'motivo': motivo.trim(),
       'tipoCompensacion': tipoCompensacion,
       'dtPedido': {'id': pedidoId},
-      if (montoReintegro != null) 'montoReintegro': montoReintegro,
     };
 
     try {

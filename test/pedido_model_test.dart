@@ -21,6 +21,32 @@ void main() {
       expect(pedido.fechaLegible, contains('2026'));
     });
 
+    test('parsea telefonoFijo del local anidado', () {
+      final pedido = PedidoResponseModel.fromJson({
+        'id': 10,
+        'total': 500,
+        'estado': 'Entregado',
+        'local': {
+          'id': 3,
+          'nombre': 'Burger World',
+          'telefonoFijo': '+59824871234',
+        },
+      });
+
+      expect(pedido.localTelefonoFijo, '+59824871234');
+    });
+
+    test('sin telefonoFijo en el local anidado queda null', () {
+      final pedido = PedidoResponseModel.fromJson({
+        'id': 10,
+        'total': 500,
+        'estado': 'Entregado',
+        'local': {'id': 3, 'nombre': 'Burger World'},
+      });
+
+      expect(pedido.localTelefonoFijo, isNull);
+    });
+
     test('puedeCompletarPagoMercadoPago cuando hay init point pendiente', () {
       final pedido = PedidoResponseModel.fromJson({
         'id': 1,

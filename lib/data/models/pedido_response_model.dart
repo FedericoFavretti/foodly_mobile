@@ -9,6 +9,7 @@ class PedidoResponseModel {
     required this.localNombre,
     required this.detalles,
     this.localId,
+    this.localTelefonoFijo,
     this.fecha,
     this.motivoRechazo,
     this.domicilioEntrega,
@@ -27,6 +28,9 @@ class PedidoResponseModel {
   final String estado;
   final String localNombre;
   final int? localId;
+  /// E.164 completo, viene directo en la respuesta (a diferencia del
+  /// `celular` del local, que requiere un fetch aparte contra su perfil).
+  final String? localTelefonoFijo;
   final DateTime? fecha;
   final String? motivoRechazo;
   final DireccionModel? domicilioEntrega;
@@ -121,6 +125,9 @@ class PedidoResponseModel {
       localId: localJson is Map<String, dynamic> && localJson['id'] != null
           ? (localJson['id'] as num).toInt()
           : null,
+      localTelefonoFijo: localJson is Map<String, dynamic>
+          ? localJson['telefonoFijo'] as String?
+          : null,
       fecha: _parseFecha(json['fecha']),
       motivoRechazo: motivo != null && motivo.trim().isNotEmpty ? motivo : null,
       domicilioEntrega: domicilioJson is Map<String, dynamic>
@@ -167,6 +174,7 @@ class PedidoResponseModel {
     String? estado,
     String? localNombre,
     int? localId,
+    String? localTelefonoFijo,
     DateTime? fecha,
     String? motivoRechazo,
     DireccionModel? domicilioEntrega,
@@ -186,6 +194,7 @@ class PedidoResponseModel {
       estado: estado ?? this.estado,
       localNombre: localNombre ?? this.localNombre,
       localId: localId ?? this.localId,
+      localTelefonoFijo: localTelefonoFijo ?? this.localTelefonoFijo,
       fecha: fecha ?? this.fecha,
       motivoRechazo: motivoRechazo ?? this.motivoRechazo,
       domicilioEntrega: domicilioEntrega ?? this.domicilioEntrega,

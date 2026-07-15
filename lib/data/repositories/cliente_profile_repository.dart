@@ -19,6 +19,7 @@ class ActualizarPerfilData {
     required this.numero,
     required this.ciudad,
     required this.codigoPostal,
+    this.celular,
     this.fotoBytes,
     this.fotoFilename,
   });
@@ -29,6 +30,9 @@ class ActualizarPerfilData {
   final String numero;
   final String ciudad;
   final String codigoPostal;
+  /// E.164 completo (ej. `+598991234567`). Si viene vacío no se manda la
+  /// clave al backend (mandar `""` rompe la validación del lado servidor).
+  final String? celular;
   final List<int>? fotoBytes;
   final String? fotoFilename;
 }
@@ -85,6 +89,7 @@ class ClienteProfileRepository {
     try {
       // El backend espera un @RequestPart "datos" con JSON anidado,
       // no campos planos de formulario.
+      final celular = data.celular?.trim();
       final datosJson = jsonEncode({
         'nombre': data.nombre.trim(),
         'apellido': data.apellido.trim(),
@@ -94,6 +99,7 @@ class ClienteProfileRepository {
           'ciudad': data.ciudad.trim(),
           'codigoPostal': data.codigoPostal.trim(),
         },
+        if (celular != null && celular.isNotEmpty) 'celular': celular,
       });
 
       final files = <String, http.MultipartFile>{

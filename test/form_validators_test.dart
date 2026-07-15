@@ -33,5 +33,21 @@ void main() {
         isNotNull,
       );
     });
+
+    test('celular vacío es válido (campo opcional)', () {
+      expect(FormValidators.celular(''), isNull);
+      expect(FormValidators.celular(null), isNull);
+    });
+
+    test('celular E.164 válido retorna null', () {
+      expect(FormValidators.celular('+598991234567'), isNull);
+      expect(FormValidators.celular('+5491122334455'), isNull);
+    });
+
+    test('celular sin código de país o mal formado falla', () {
+      expect(FormValidators.celular('099123456'), isNotNull);
+      expect(FormValidators.celular('+0991234567'), isNotNull);
+      expect(FormValidators.celular('+598'), isNotNull);
+    });
   });
 }
