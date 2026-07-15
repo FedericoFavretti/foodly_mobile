@@ -47,8 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _profileRepository =
-        widget.profileRepository ?? ClienteProfileRepository();
+    _profileRepository = widget.profileRepository ?? ClienteProfileRepository();
     _profileFuture = _profileRepository.getOrFetch();
     _loadBiometricPreference();
   }
@@ -93,9 +92,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'La biometría no está disponible en este dispositivo.',
       _ => 'No se pudo verificar tu identidad.',
     };
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openChangeEmail(String currentEmail) async {
@@ -143,16 +142,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openChangePassword() async {
     final message = await Navigator.of(context).push<String>(
       FoodlyPageRoute(
-        settings: const RouteSettings(
-          name: ChangePasswordScreen.routeName,
-        ),
+        settings: const RouteSettings(name: ChangePasswordScreen.routeName),
         page: const ChangePasswordScreen(),
       ),
     );
     if (message != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -230,9 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                hintText: 'tu@email.com',
-              ),
+              decoration: const InputDecoration(hintText: 'tu@email.com'),
             ),
           ],
         ),
@@ -279,9 +274,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.userMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.userMessage)));
     }
   }
 
@@ -324,160 +319,182 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _ProfileHero(
                 displayName: _heroName(profile),
                 email: profile.email,
-                fotoUrl: profile.fotoUrl,
-                initials: _initials(profile),
                 isRefreshing: _isRefreshing,
               ),
               Expanded(
-                child: RefreshIndicator(
-                  color: FoodlyColors.celeste,
-                  onRefresh: () => _reloadProfile(silent: true),
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 56, 16, 32),
-                    children: [
-                      _ProfileInfoCard(
-                        title: 'Datos personales',
-                        icon: Icons.badge_outlined,
-                        trailing: TextButton.icon(
-                          onPressed: () => _openEditProfile(profile),
-                          icon: const Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: FoodlyColors.celeste,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    RefreshIndicator(
+                      color: FoodlyColors.celeste,
+                      onRefresh: () => _reloadProfile(silent: true),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 56, 16, 32),
+                        children: [
+                          _ProfileInfoCard(
+                            title: 'Datos personales',
+                            icon: Icons.badge_outlined,
+                            trailing: TextButton.icon(
+                              onPressed: () => _openEditProfile(profile),
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                size: 18,
+                                color: FoodlyColors.celeste,
+                              ),
+                              label: Text(
+                                'Editar',
+                                style: GoogleFonts.nunito(
+                                  fontWeight: FontWeight.w700,
+                                  color: FoodlyColors.celeste,
+                                ),
+                              ),
+                            ),
+                            children: [
+                              _ProfileInfoRow(
+                                icon: Icons.person_outline,
+                                label: 'Nombre',
+                                value: _displayValue(profile.nombre),
+                              ),
+                              _ProfileInfoRow(
+                                icon: Icons.person_outline,
+                                label: 'Apellido',
+                                value: _displayValue(profile.apellido),
+                              ),
+                              _ProfileInfoRow(
+                                icon: Icons.email_outlined,
+                                label: 'Correo electrónico',
+                                value: profile.email,
+                              ),
+                              _ProfileInfoRow(
+                                icon: Icons.phone_iphone,
+                                label: 'Celular',
+                                value:
+                                    profile.celular?.trim().isNotEmpty == true
+                                    ? profile.celular!
+                                    : 'Sin celular registrado',
+                                muted:
+                                    profile.celular?.trim().isNotEmpty != true,
+                              ),
+                            ],
                           ),
-                          label: Text(
-                            'Editar',
-                            style: GoogleFonts.nunito(
-                              fontWeight: FontWeight.w700,
-                              color: FoodlyColors.celeste,
+                          const SizedBox(height: 16),
+                          _ProfileInfoCard(
+                            title: 'Entrega',
+                            icon: Icons.delivery_dining_outlined,
+                            children: [
+                              _ProfileInfoRow(
+                                icon: Icons.location_on_outlined,
+                                label: 'Dirección de entrega',
+                                value:
+                                    profile.direccion?.resumen.isNotEmpty ==
+                                        true
+                                    ? profile.direccion!.resumen
+                                    : 'Sin dirección registrada',
+                                muted:
+                                    profile.direccion?.resumen.isNotEmpty !=
+                                    true,
+                              ),
+                              if (profile.direccion?.codigoPostal?.isNotEmpty ==
+                                  true)
+                                _ProfileInfoRow(
+                                  icon: Icons.markunread_mailbox_outlined,
+                                  label: 'Código postal',
+                                  value: profile.direccion!.codigoPostal!,
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _ReputacionSection(
+                            key: ValueKey(_reputacionRefreshKey),
+                            clienteId: profile.id,
+                          ),
+                          const SizedBox(height: 16),
+                          _ProfileInfoCard(
+                            title: 'Cuenta',
+                            icon: Icons.settings_outlined,
+                            children: [
+                              if (_biometricAvailable) ...[
+                                _BiometricToggleRow(
+                                  value: _biometricEnabled,
+                                  loading: _biometricLoading,
+                                  onChanged: _toggleBiometric,
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 4),
+                                  child: Divider(height: 1),
+                                ),
+                              ],
+                              _ProfileActionRow(
+                                icon: Icons.email_outlined,
+                                title: 'Cambiar correo',
+                                subtitle:
+                                    'Confirmación por enlace en tu correo actual',
+                                color: FoodlyColors.celeste,
+                                onTap: () => _openChangeEmail(profile.email),
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 4),
+                                child: Divider(height: 1),
+                              ),
+                              _ProfileActionRow(
+                                icon: Icons.lock_outline_rounded,
+                                title: 'Cambiar contraseña',
+                                subtitle:
+                                    'Verificación por código en tu correo',
+                                color: FoodlyColors.celeste,
+                                onTap: _openChangePassword,
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 4),
+                                child: Divider(height: 1),
+                              ),
+                              _ProfileActionRow(
+                                icon: Icons.logout_rounded,
+                                title: 'Cerrar sesión',
+                                subtitle:
+                                    'Salir de tu cuenta en este dispositivo',
+                                color: FoodlyColors.celeste,
+                                onTap: _logout,
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 4),
+                                child: Divider(height: 1),
+                              ),
+                              _ProfileActionRow(
+                                icon: Icons.delete_forever_outlined,
+                                title: 'Eliminar cuenta',
+                                subtitle: 'Acción permanente e irreversible',
+                                color: const Color(0xFFD32F2F),
+                                onTap: () => _deleteAccount(profile),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          Center(
+                            child: Text(
+                              'Cliente Nº ${profile.id}',
+                              style: GoogleFonts.nunito(
+                                fontSize: 12,
+                                color: FoodlyColors.grisIntermedio,
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      top: -48,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: _ProfileAvatar(
+                          fotoUrl: profile.fotoUrl,
+                          initials: _initials(profile),
                         ),
-                        children: [
-                          _ProfileInfoRow(
-                            icon: Icons.person_outline,
-                            label: 'Nombre',
-                            value: _displayValue(profile.nombre),
-                          ),
-                          _ProfileInfoRow(
-                            icon: Icons.person_outline,
-                            label: 'Apellido',
-                            value: _displayValue(profile.apellido),
-                          ),
-                          _ProfileInfoRow(
-                            icon: Icons.email_outlined,
-                            label: 'Correo electrónico',
-                            value: profile.email,
-                          ),
-                          _ProfileInfoRow(
-                            icon: Icons.phone_iphone,
-                            label: 'Celular',
-                            value: profile.celular?.trim().isNotEmpty == true
-                                ? profile.celular!
-                                : 'Sin celular registrado',
-                            muted: profile.celular?.trim().isNotEmpty != true,
-                          ),
-                        ],
                       ),
-                      const SizedBox(height: 16),
-                      _ProfileInfoCard(
-                        title: 'Entrega',
-                        icon: Icons.delivery_dining_outlined,
-                        children: [
-                          _ProfileInfoRow(
-                            icon: Icons.location_on_outlined,
-                            label: 'Dirección de entrega',
-                            value: profile.direccion?.resumen.isNotEmpty == true
-                                ? profile.direccion!.resumen
-                                : 'Sin dirección registrada',
-                            muted: profile.direccion?.resumen.isNotEmpty != true,
-                          ),
-                          if (profile.direccion?.codigoPostal?.isNotEmpty ==
-                              true)
-                            _ProfileInfoRow(
-                              icon: Icons.markunread_mailbox_outlined,
-                              label: 'Código postal',
-                              value: profile.direccion!.codigoPostal!,
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _ReputacionSection(
-                        key: ValueKey(_reputacionRefreshKey),
-                        clienteId: profile.id,
-                      ),
-                      const SizedBox(height: 16),
-                      _ProfileInfoCard(
-                        title: 'Cuenta',
-                        icon: Icons.settings_outlined,
-                        children: [
-                          if (_biometricAvailable) ...[
-                            _BiometricToggleRow(
-                              value: _biometricEnabled,
-                              loading: _biometricLoading,
-                              onChanged: _toggleBiometric,
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 4),
-                              child: Divider(height: 1),
-                            ),
-                          ],
-                          _ProfileActionRow(
-                            icon: Icons.email_outlined,
-                            title: 'Cambiar correo',
-                            subtitle:
-                                'Confirmación por enlace en tu correo actual',
-                            color: FoodlyColors.celeste,
-                            onTap: () => _openChangeEmail(profile.email),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 4),
-                            child: Divider(height: 1),
-                          ),
-                          _ProfileActionRow(
-                            icon: Icons.lock_outline_rounded,
-                            title: 'Cambiar contraseña',
-                            subtitle: 'Verificación por código en tu correo',
-                            color: FoodlyColors.celeste,
-                            onTap: _openChangePassword,
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 4),
-                            child: Divider(height: 1),
-                          ),
-                          _ProfileActionRow(
-                            icon: Icons.logout_rounded,
-                            title: 'Cerrar sesión',
-                            subtitle: 'Salir de tu cuenta en este dispositivo',
-                            color: FoodlyColors.celeste,
-                            onTap: _logout,
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 4),
-                            child: Divider(height: 1),
-                          ),
-                          _ProfileActionRow(
-                            icon: Icons.delete_forever_outlined,
-                            title: 'Eliminar cuenta',
-                            subtitle: 'Acción permanente e irreversible',
-                            color: const Color(0xFFD32F2F),
-                            onTap: () => _deleteAccount(profile),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      Center(
-                        child: Text(
-                          'Cliente Nº ${profile.id}',
-                          style: GoogleFonts.nunito(
-                            fontSize: 12,
-                            color: FoodlyColors.grisIntermedio,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -542,121 +559,92 @@ class _ProfileHero extends StatelessWidget {
     required this.displayName,
     required this.email,
     required this.isRefreshing,
-    this.fotoUrl,
-    this.initials,
   });
 
   final String displayName;
   final String email;
-  final String? fotoUrl;
-  final String? initials;
   final bool isRefreshing;
 
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.paddingOf(context).top;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        ColoredBox(
-          color: FoodlyColors.celeste,
-          child: Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(20, topInset + 16, 20, 72),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Mi perfil',
-                            style: FoodlyTheme.sansBlack.copyWith(
-                              fontSize: 30,
-                              height: 1.05,
-                              color: FoodlyColors.blanco,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            displayName,
-                            style: FoodlyTheme.sansBold.copyWith(
-                              fontSize: 15,
-                              color: FoodlyColors.amarillo,
-                            ),
-                          ),
-                          if (email.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              email,
-                              style: GoogleFonts.nunito(
-                                fontSize: 13,
-                                color: FoodlyColors.blanco.withValues(
-                                  alpha: 0.92,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (isRefreshing)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 4),
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: FoodlyColors.blanco,
-                          ),
+    return ColoredBox(
+      color: FoodlyColors.celeste,
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, topInset + 16, 20, 72),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mi perfil',
+                        style: FoodlyTheme.sansBlack.copyWith(
+                          fontSize: 30,
+                          height: 1.05,
+                          color: FoodlyColors.blanco,
                         ),
                       ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        displayName,
+                        style: FoodlyTheme.sansBold.copyWith(
+                          fontSize: 15,
+                          color: FoodlyColors.amarillo,
+                        ),
+                      ),
+                      if (email.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          email,
+                          style: GoogleFonts.nunito(
+                            fontSize: 13,
+                            color: FoodlyColors.blanco.withValues(alpha: 0.92),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-              const Padding(
-                padding: EdgeInsets.only(left: 20, bottom: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: WavyAccent(),
-                ),
-              ),
-              Container(
-                height: 22,
-                decoration: const BoxDecoration(
-                  color: FoodlyColors.blanco,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (initials != null)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: -48,
-            child: Center(
-              child: _ProfileAvatar(
-                fotoUrl: fotoUrl,
-                initials: initials!,
-              ),
+                if (isRefreshing)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: FoodlyColors.blanco,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-      ],
+          const Padding(
+            padding: EdgeInsets.only(left: 20, bottom: 8),
+            child: Align(alignment: Alignment.centerLeft, child: WavyAccent()),
+          ),
+          Container(
+            height: 22,
+            decoration: const BoxDecoration(
+              color: FoodlyColors.blanco,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({
-    required this.fotoUrl,
-    required this.initials,
-  });
+  const _ProfileAvatar({required this.fotoUrl, required this.initials});
 
   final String? fotoUrl;
   final String initials;
@@ -682,10 +670,7 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 class _AvatarContent extends StatelessWidget {
-  const _AvatarContent({
-    required this.fotoUrl,
-    required this.initials,
-  });
+  const _AvatarContent({required this.fotoUrl, required this.initials});
 
   final String? fotoUrl;
   final String initials;
@@ -997,10 +982,7 @@ class _ProfileActionRow extends StatelessWidget {
 }
 
 class _ReputacionData {
-  const _ReputacionData({
-    required this.global,
-    required this.detalle,
-  });
+  const _ReputacionData({required this.global, required this.detalle});
 
   final CalificacionGlobalModel global;
   final List<CalificacionDetalleModel> detalle;
@@ -1026,11 +1008,13 @@ class _ReputacionSectionState extends State<_ReputacionSection> {
   }
 
   Future<_ReputacionData?> _load() async {
-    final global =
-        await _repository.obtenerCalificacionRecibida(widget.clienteId);
+    final global = await _repository.obtenerCalificacionRecibida(
+      widget.clienteId,
+    );
     if (global == null) return null;
-    final detalle =
-        await _repository.obtenerDetalleCalificacionRecibida(widget.clienteId);
+    final detalle = await _repository.obtenerDetalleCalificacionRecibida(
+      widget.clienteId,
+    );
     return _ReputacionData(global: global, detalle: detalle);
   }
 
