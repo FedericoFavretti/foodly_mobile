@@ -6,7 +6,7 @@
       "request": "launch",
       "type": "dart",
       "args": [
-        "--dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-svvpngeddntj3jkeo3fmopahj9h1c29d.apps.googleusercontent.com",
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=354383331938-p7lforsml8soteb6onrcel8skgd2fm76.apps.googleusercontent.com",
         "--dart-define=API_BASE_URL=https://proyectoequipo32026-test.up.railway.app"
       ]
     },
@@ -15,7 +15,7 @@
       "request": "launch",
       "type": "dart",
       "args": [
-        "--dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-svvpngeddntj3jkeo3fmopahj9h1c29d.apps.googleusercontent.com",
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=354383331938-p7lforsml8soteb6onrcel8skgd2fm76.apps.googleusercontent.com",
         "--dart-define=API_BASE_URL=http://10.0.2.2:8080"
       ]
     },
@@ -24,7 +24,7 @@
       "request": "launch",
       "type": "dart",
       "args": [
-        "--dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-svvpngeddntj3jkeo3fmopahj9h1c29d.apps.googleusercontent.com",
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=354383331938-p7lforsml8soteb6onrcel8skgd2fm76.apps.googleusercontent.com",
         "--dart-define=API_BASE_URL=https://proyectoequipo32026-test.up.railway.app",
         "--dart-define=USE_MOCK_CATALOG=true"
       ]

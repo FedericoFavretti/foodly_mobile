@@ -35,7 +35,11 @@ Future<void> bootstrapFoodlyApp() async {
 }
 
 void main() {
-  bootstrapFoodlyApp().then((_) => runApp(const FoodlyApp()));
+  bootstrapFoodlyApp().then((_) => runApp(const FoodlyApp())).catchError((Object error) {
+    // Si el bootstrap falla, ejecutar igualmente para mostrar la app
+    // en lugar de un crash silencioso.
+    runApp(const FoodlyApp());
+  });
 }
 
 class FoodlyApp extends StatelessWidget {

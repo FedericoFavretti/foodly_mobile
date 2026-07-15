@@ -9,7 +9,7 @@ if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null 
 $railway = @'
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Foodly dev (Railway test)" type="FlutterRunConfigurationType" factoryName="Flutter">
-    <option name="additionalArgs" value="--dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-svvpngeddntj3jkeo3fmopahj9h1c29d.apps.googleusercontent.com --dart-define=API_BASE_URL=https://proyectoequipo32026-test.up.railway.app" />
+    <option name="additionalArgs" value="--dart-define=GOOGLE_SERVER_CLIENT_ID=354383331938-p7lforsml8soteb6onrcel8skgd2fm76.apps.googleusercontent.com --dart-define=API_BASE_URL=https://proyectoequipo32026-test.up.railway.app" />
     <option name="filePath" value="$PROJECT_DIR$/lib/main.dart" />
     <method v="2" />
   </configuration>
@@ -22,7 +22,7 @@ Write-Host "[OK] Foodly dev (Railway test)" -ForegroundColor Green
 $localhost = @'
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Foodly dev (localhost)" type="FlutterRunConfigurationType" factoryName="Flutter">
-    <option name="additionalArgs" value="--dart-define=GOOGLE_SERVER_CLIENT_ID=1072360825042-svvpngeddntj3jkeo3fmopahj9h1c29d.apps.googleusercontent.com --dart-define=API_BASE_URL=http://10.0.2.2:8080" />
+    <option name="additionalArgs" value="--dart-define=GOOGLE_SERVER_CLIENT_ID=354383331938-p7lforsml8soteb6onrcel8skgd2fm76.apps.googleusercontent.com --dart-define=API_BASE_URL=http://10.0.2.2:8080" />
     <option name="filePath" value="$PROJECT_DIR$/lib/main.dart" />
     <method v="2" />
   </configuration>
