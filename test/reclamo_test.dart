@@ -42,15 +42,9 @@ void main() {
       );
     });
 
-    test('valida compensación alternativa con descripción mínima', () {
-      expect(
-        ReclamoRules.validarCompensacionAlternativa('ok'),
-        isNotNull,
-      );
-      expect(
-        ReclamoRules.validarCompensacionAlternativa('Reenvío del pedido'),
-        isNull,
-      );
+    test('expone las etiquetas de tipo de compensación', () {
+      expect(ReclamoRules.tipoReintegro, 'Reintegro');
+      expect(ReclamoRules.tipoAlternativa, 'Otra');
     });
   });
 

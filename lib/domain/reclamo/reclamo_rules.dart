@@ -1,6 +1,7 @@
 /// Reglas de negocio para reclamos (CU-CL09).
 abstract final class ReclamoRules {
   static const tipoReintegro = 'Reintegro';
+  static const tipoAlternativa = 'Otra';
 
   static bool estadoPermiteReclamo(String estado) {
     final normalized = estado.toLowerCase();
@@ -12,12 +13,5 @@ abstract final class ReclamoRules {
     required bool tieneReclamo,
   }) {
     return estadoPermiteReclamo(estado) && !tieneReclamo;
-  }
-
-  static String? validarCompensacionAlternativa(String descripcion) {
-    if (descripcion.trim().length < 3) {
-      return 'Debe describir la compensación alternativa solicitada.';
-    }
-    return null;
   }
 }

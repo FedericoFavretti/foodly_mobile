@@ -12,16 +12,12 @@ Future<ReclamoFormData?> showReclamoFormDialog(
   required PedidoResponseModel pedido,
 }) {
   final motivo = TextEditingController();
-  final compensacion = TextEditingController();
   var tipoCompensacion = TipoCompensacionSolicitada.reintegro;
 
   return showDialog<ReclamoFormData?>(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setDialogState) {
-        final esReintegro =
-            tipoCompensacion == TipoCompensacionSolicitada.reintegro;
-
         return AlertDialog(
           title: const Text('Realizar reclamo'),
           content: SingleChildScrollView(
@@ -79,17 +75,6 @@ Future<ReclamoFormData?> showReclamoFormDialog(
                     });
                   },
                 ),
-                if (!esReintegro) ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: compensacion,
-                    decoration: const InputDecoration(
-                      labelText: 'Compensación alternativa *',
-                      hintText: 'Ej: reenvío del pedido, descuento...',
-                    ),
-                    maxLines: 2,
-                  ),
-                ],
               ],
             ),
           ),
@@ -111,25 +96,14 @@ Future<ReclamoFormData?> showReclamoFormDialog(
                   return;
                 }
 
-                if (!esReintegro) {
-                  final error = ReclamoRules.validarCompensacionAlternativa(
-                    compensacion.text,
-                  );
-                  if (error != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(error)),
-                    );
-                    return;
-                  }
-                }
-
                 Navigator.pop(
                   context,
                   ReclamoFormData(
                     motivo: motivo.text.trim(),
-                    tipoCompensacion: esReintegro
-                        ? ReclamoRules.tipoReintegro
-                        : compensacion.text.trim(),
+                    tipoCompensacion:
+                        tipoCompensacion == TipoCompensacionSolicitada.reintegro
+                            ? ReclamoRules.tipoReintegro
+                            : ReclamoRules.tipoAlternativa,
                   ),
                 );
               },
