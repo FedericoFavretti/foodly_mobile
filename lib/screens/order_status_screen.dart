@@ -3,12 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/models/pedido_response_model.dart';
+import '../data/repositories/pedido_repository.dart';
 import '../screens/main_screen.dart';
 import '../theme/foodly_colors.dart';
+import '../theme/foodly_theme.dart';
 import '../widgets/foodly_button.dart';
 import '../widgets/pedido_card.dart';
 
-class OrderStatusScreen extends StatelessWidget {
+class OrderStatusScreen extends StatefulWidget {
   const OrderStatusScreen({super.key, required this.pedido});
 
   static const routeName = '/pedido-confirmado';
@@ -16,8 +18,69 @@ class OrderStatusScreen extends StatelessWidget {
   final PedidoResponseModel pedido;
 
   @override
+  State<OrderStatusScreen> createState() => _OrderStatusScreenState();
+}
+
+class _OrderStatusScreenState extends State<OrderStatusScreen>
+    with WidgetsBindingObserver {
+  late PedidoResponseModel _pedido;
+  bool _abrioMercadoPago = false;
+  bool _refrescando = false;
+  final _repo = PedidoRepository();
+
+  @override
+  void initState() {
+    super.initState();
+    _pedido = widget.pedido;
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Cuando el usuario vuelve a la app después de haber abierto MP,
+    // refrescamos el estado del pedido para ver si el pago fue aprobado.
+    if (state == AppLifecycleState.resumed && _abrioMercadoPago) {
+      _abrioMercadoPago = false;
+      _refrescarPedido();
+    }
+  }
+
+  Future<void> _refrescarPedido() async {
+    if (_refrescando) return;
+    setState(() => _refrescando = true);
+    try {
+      final actualizado = await _repo.obtenerPedido(_pedido.id);
+      if (!mounted) return;
+      setState(() => _pedido = actualizado);
+    } catch (_) {
+      // Si falla el refresco, no mostramos error — el usuario puede ir a "Mis Pedidos"
+    } finally {
+      if (mounted) setState(() => _refrescando = false);
+    }
+  }
+
+  Future<void> _abrirMercadoPago() async {
+    final uri = Uri.tryParse(_pedido.mpInitPoint!.trim());
+    if (uri == null) return;
+    _abrioMercadoPago = true;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  bool get _pagado =>
+      !_pedido.puedeCompletarPagoMercadoPago &&
+      _pedido.requierePagoMercadoPago &&
+      !_pedido.pagoPendiente;
+
+  @override
   Widget build(BuildContext context) {
-    final esMercadoPago = pedido.requierePagoMercadoPago;
+    final esMercadoPago = _pedido.requierePagoMercadoPago;
+    final pagoCompletado = esMercadoPago && _pagado;
 
     return Scaffold(
       backgroundColor: FoodlyColors.blanco,
@@ -31,18 +94,23 @@ class OrderStatusScreen extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: FoodlyColors.celeste.withValues(alpha: 0.12),
+                  color: (pagoCompletado
+                          ? const Color(0xFF2E7D32)
+                          : FoodlyColors.celeste)
+                      .withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.check_circle,
+                child: Icon(
+                  pagoCompletado ? Icons.check_circle : Icons.receipt_long,
                   size: 44,
-                  color: FoodlyColors.celeste,
+                  color: pagoCompletado
+                      ? const Color(0xFF2E7D32)
+                      : FoodlyColors.celeste,
                 ),
               ),
               const SizedBox(height: 20),
               Text(
-                '¡Pedido registrado!',
+                pagoCompletado ? '¡Pago confirmado!' : '¡Pedido registrado!',
                 style: GoogleFonts.dmSerifDisplay(
                   fontSize: 30,
                   color: FoodlyColors.grisOscuro,
@@ -50,9 +118,11 @@ class OrderStatusScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                esMercadoPago
-                    ? 'Completá el pago en Mercado Pago para que el local reciba tu pedido.'
-                    : 'Pagás en efectivo al recibir el pedido.',
+                pagoCompletado
+                    ? 'Tu pago fue aprobado. El local ya recibió tu pedido.'
+                    : esMercadoPago
+                        ? 'Completá el pago en Mercado Pago para que el local reciba tu pedido.'
+                        : 'Pagás en efectivo al recibir el pedido.',
                 style: GoogleFonts.nunito(
                   fontSize: 15,
                   height: 1.4,
@@ -60,17 +130,44 @@ class OrderStatusScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              PedidoCard(pedido: pedido),
-              if (pedido.puedeCompletarPagoMercadoPago) ...[
+              PedidoCard(pedido: _pedido),
+              if (_refrescando) ...[
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Verificando pago…',
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        color: FoodlyColors.grisIntermedio,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (_pedido.puedeCompletarPagoMercadoPago && !_refrescando) ...[
                 const SizedBox(height: 16),
                 FoodlyButton(
                   label: 'ABRIR MERCADO PAGO',
-                  onPressed: () async {
-                    final uri = Uri.tryParse(pedido.mpInitPoint!.trim());
-                    if (uri != null) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    }
-                  },
+                  onPressed: _abrirMercadoPago,
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _refrescarPedido,
+                  child: Text(
+                    'Ya pagué — verificar estado',
+                    style: FoodlyTheme.sansBold.copyWith(
+                      color: FoodlyColors.celeste,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               ],
               const SizedBox(height: 16),
