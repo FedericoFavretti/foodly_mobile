@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_client.dart';
+import '../../core/network/api_response_helpers.dart';
 import '../../domain/cart/cart_item.dart';
 import '../../domain/pedido/medio_pago.dart';
 import '../models/direccion_model.dart';
@@ -157,9 +158,18 @@ class PedidoRepository {
             .toList();
       }
 
+      // El backend responde 400 (en vez de 200 con lista vacía) cuando no
+      // hay pedidos que coincidan con el filtro — o directamente ninguno.
+      final backendMessage = ApiResponseHelpers.mapErrorMessage(response.body);
+      if (response.statusCode == 400 &&
+          ApiResponseHelpers.isEmptyResultMessage(backendMessage)) {
+        return [];
+      }
+
       throw ApiException(
         statusCode: response.statusCode,
-        userMessage: 'No pudimos cargar tu historial. Intentalo más tarde.',
+        userMessage: backendMessage ??
+            'No pudimos cargar tu historial. Intentalo más tarde.',
         debugInfo: response.body,
       );
     } on ApiException {

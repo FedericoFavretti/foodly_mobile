@@ -77,6 +77,48 @@ void main() {
       final pedidos = await repo.listarHistorial();
       expect(pedidos, isEmpty);
     });
+
+    test(
+        '400 "no se encontraron pedidos" (0 resultados) retorna lista vacía, '
+        'no lanza excepción', () async {
+      final client = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'mensaje':
+                'No se encontraron pedidos que coincidan con los criterios seleccionados.',
+            'status': 400,
+          }),
+          400,
+        );
+      });
+
+      final repo = PedidoRepository(api: ApiClient(client: client));
+      final pedidos = await repo.listarHistorial(estado: 'Pendiente');
+
+      expect(pedidos, isEmpty);
+    });
+
+    test('400 con otro motivo sigue lanzando ApiException', () async {
+      final client = MockClient((request) async {
+        return http.Response(
+          jsonEncode({'mensaje': 'Token inválido.', 'status': 400}),
+          400,
+        );
+      });
+
+      final repo = PedidoRepository(api: ApiClient(client: client));
+
+      expect(
+        () => repo.listarHistorial(),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.userMessage,
+            'userMessage',
+            'Token inválido.',
+          ),
+        ),
+      );
+    });
   });
 
   group('PedidoRepository.cancelarPedido', () {
