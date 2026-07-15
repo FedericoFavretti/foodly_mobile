@@ -12,7 +12,6 @@ Future<ReclamoFormData?> showReclamoFormDialog(
   required PedidoResponseModel pedido,
 }) {
   final motivo = TextEditingController();
-  final monto = TextEditingController();
   final compensacion = TextEditingController();
   var tipoCompensacion = TipoCompensacionSolicitada.reintegro;
 
@@ -80,19 +79,8 @@ Future<ReclamoFormData?> showReclamoFormDialog(
                     });
                   },
                 ),
-                const SizedBox(height: 12),
-                if (esReintegro)
-                  TextField(
-                    controller: monto,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Monto de reintegro *',
-                      hintText: 'Máximo \$${pedido.total.toStringAsFixed(0)}',
-                    ),
-                  )
-                else
+                if (!esReintegro) ...[
+                  const SizedBox(height: 12),
                   TextField(
                     controller: compensacion,
                     decoration: const InputDecoration(
@@ -101,6 +89,7 @@ Future<ReclamoFormData?> showReclamoFormDialog(
                     ),
                     maxLines: 2,
                   ),
+                ],
               ],
             ),
           ),
@@ -122,18 +111,7 @@ Future<ReclamoFormData?> showReclamoFormDialog(
                   return;
                 }
 
-                if (esReintegro) {
-                  final error = ReclamoRules.validarMontoReintegro(
-                    rawMonto: monto.text,
-                    totalPedido: pedido.total,
-                  );
-                  if (error != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(error)),
-                    );
-                    return;
-                  }
-                } else {
+                if (!esReintegro) {
                   final error = ReclamoRules.validarCompensacionAlternativa(
                     compensacion.text,
                   );
@@ -152,11 +130,6 @@ Future<ReclamoFormData?> showReclamoFormDialog(
                     tipoCompensacion: esReintegro
                         ? ReclamoRules.tipoReintegro
                         : compensacion.text.trim(),
-                    montoReintegro: esReintegro
-                        ? double.parse(
-                            monto.text.trim().replaceAll(',', '.'),
-                          )
-                        : null,
                   ),
                 );
               },

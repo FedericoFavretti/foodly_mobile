@@ -146,7 +146,6 @@ class HistorialScreenState extends State<HistorialScreen>
         pedidoId: pedido.id,
         motivo: result.motivo,
         tipoCompensacion: result.tipoCompensacion,
-        montoReintegro: result.montoReintegro,
       );
       if (!mounted) return;
 

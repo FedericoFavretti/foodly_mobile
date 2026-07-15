@@ -14,24 +14,6 @@ abstract final class ReclamoRules {
     return estadoPermiteReclamo(estado) && !tieneReclamo;
   }
 
-  static String? validarMontoReintegro({
-    required String rawMonto,
-    required double totalPedido,
-  }) {
-    final normalized = rawMonto.trim().replaceAll(',', '.');
-    if (normalized.isEmpty) {
-      return 'Debe indicar un monto de reintegro válido.';
-    }
-    final monto = double.tryParse(normalized);
-    if (monto == null || monto <= 0) {
-      return 'Debe indicar un monto de reintegro válido.';
-    }
-    if (monto > totalPedido) {
-      return 'El monto de reintegro no puede superar el total del pedido.';
-    }
-    return null;
-  }
-
   static String? validarCompensacionAlternativa(String descripcion) {
     if (descripcion.trim().length < 3) {
       return 'Debe describir la compensación alternativa solicitada.';

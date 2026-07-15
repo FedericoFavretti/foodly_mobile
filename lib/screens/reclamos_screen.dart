@@ -162,7 +162,6 @@ class ReclamosScreenState extends State<ReclamosScreen>
         pedidoId: pedido.id,
         motivo: form.motivo,
         tipoCompensacion: form.tipoCompensacion,
-        montoReintegro: form.montoReintegro,
       );
 
       if (!mounted) return;

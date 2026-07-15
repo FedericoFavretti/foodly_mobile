@@ -42,18 +42,14 @@ void main() {
       );
     });
 
-    test('valida monto de reintegro contra total del pedido', () {
+    test('valida compensación alternativa con descripción mínima', () {
       expect(
-        ReclamoRules.validarMontoReintegro(rawMonto: '500', totalPedido: 350),
-        contains('no puede superar'),
-      );
-      expect(
-        ReclamoRules.validarMontoReintegro(rawMonto: '350', totalPedido: 350),
-        isNull,
-      );
-      expect(
-        ReclamoRules.validarMontoReintegro(rawMonto: '0', totalPedido: 350),
+        ReclamoRules.validarCompensacionAlternativa('ok'),
         isNotNull,
+      );
+      expect(
+        ReclamoRules.validarCompensacionAlternativa('Reenvío del pedido'),
+        isNull,
       );
     });
   });
@@ -100,22 +96,18 @@ void main() {
         pedidoId: 12,
         motivo: 'Llegó frío',
         tipoCompensacion: ReclamoRules.tipoReintegro,
-        montoReintegro: 250,
       );
 
       expect(capturedBody?['motivo'], 'Llegó frío');
       expect(capturedBody?['tipoCompensacion'], 'Reintegro');
-      expect(capturedBody?['montoReintegro'], 250);
+      expect(capturedBody?.containsKey('montoReintegro'), isFalse);
       expect(capturedBody?['dtPedido'], {'id': 12});
     });
 
     test('400 del backend lanza ApiException con mensaje', () async {
       final client = MockClient((request) async {
         return http.Response(
-          jsonEncode({
-            'mensaje':
-                'El monto de reintegro no puede superar el total del pedido.',
-          }),
+          jsonEncode({'mensaje': 'No pudimos registrar el reclamo.'}),
           400,
         );
       });
@@ -127,13 +119,12 @@ void main() {
           pedidoId: 12,
           motivo: 'Problema',
           tipoCompensacion: ReclamoRules.tipoReintegro,
-          montoReintegro: 999,
         ),
         throwsA(
           isA<ApiException>().having(
             (e) => e.userMessage,
             'userMessage',
-            contains('no puede superar'),
+            contains('No pudimos registrar'),
           ),
         ),
       );
