@@ -8,6 +8,7 @@ class ClienteProfileModel {
     required this.apellido,
     this.fotoUrl,
     this.direccion,
+    this.celular,
   });
 
   final int id;
@@ -16,6 +17,9 @@ class ClienteProfileModel {
   final String apellido;
   final String? fotoUrl;
   final DireccionModel? direccion;
+  /// E.164 completo (ej. `+598991234567`). Solo llega en la respuesta de
+  /// `PUT /usuarios/perfil` — no hay forma de precargarlo desde otro lado.
+  final String? celular;
 
   String get nombreCompleto => '$nombre $apellido'.trim();
 
@@ -37,6 +41,7 @@ class ClienteProfileModel {
       direccion: direccionJson is Map<String, dynamic>
           ? DireccionModel.fromJson(direccionJson)
           : null,
+      celular: _readString(json['celular']),
     );
   }
 
@@ -83,6 +88,7 @@ class ClienteProfileModel {
             'ciudad': direccion!.ciudad,
             'codigoPostal': direccion!.codigoPostal,
           },
+        if (celular != null) 'celular': celular,
       };
 
   ClienteProfileModel copyWith({
@@ -90,6 +96,7 @@ class ClienteProfileModel {
     String? apellido,
     String? fotoUrl,
     DireccionModel? direccion,
+    String? celular,
   }) {
     return ClienteProfileModel(
       id: id,
@@ -98,6 +105,7 @@ class ClienteProfileModel {
       apellido: apellido ?? this.apellido,
       fotoUrl: fotoUrl ?? this.fotoUrl,
       direccion: direccion ?? this.direccion,
+      celular: celular ?? this.celular,
     );
   }
 }

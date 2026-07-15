@@ -210,6 +210,7 @@ class ClienteProfileRepository {
       );
     }
 
+    final celular = data.celular?.trim();
     final updated = base.copyWith(
       nombre: data.nombre.trim(),
       apellido: data.apellido.trim(),
@@ -219,6 +220,7 @@ class ClienteProfileRepository {
         ciudad: data.ciudad.trim(),
         codigoPostal: data.codigoPostal.trim(),
       ),
+      celular: celular != null && celular.isNotEmpty ? celular : null,
     );
 
     await SessionManager.saveProfileJson(jsonEncode(updated.toJson()));

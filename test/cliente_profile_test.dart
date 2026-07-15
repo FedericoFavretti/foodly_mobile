@@ -34,6 +34,22 @@ void main() {
     expect(profile.direccion?.calle, 'Av. Italia');
   });
 
+  test('ClienteProfileModel serializa y reconstruye el celular (round-trip de caché)', () {
+    const profile = ClienteProfileModel(
+      id: 7,
+      email: 'cliente@test.com',
+      nombre: 'Juan',
+      apellido: 'Pérez',
+      celular: '+598991234567',
+    );
+
+    final reconstruido = ClienteProfileModel.fromJson(
+      jsonDecode(jsonEncode(profile.toJson())) as Map<String, dynamic>,
+    );
+
+    expect(reconstruido.celular, '+598991234567');
+  });
+
   test('tryFromLoginJson parsea respuesta extendida de login', () {
     final profile = ClienteProfileModel.tryFromLoginJson({
       'id': 41,
@@ -189,6 +205,55 @@ void main() {
     final cached = await SessionManager.getProfileJson();
     expect(cached, contains('"nombre":"María"'));
     expect(cached, contains('"foto":"https://cdn.cloudinary.com/nueva-foto.jpg"'));
+  });
+
+  test(
+      'el celular que devuelve el PUT sobrevive a salir y volver a entrar '
+      '(getOrFetch con GET /perfil caído usa la caché)', () async {
+    await SessionManager.saveToken('test.token');
+
+    final client = MockClient((request) async {
+      if (request.method == 'PUT' &&
+          request.url.path == '/api/v1/usuarios/perfil') {
+        return http.Response(
+          jsonEncode({
+            'id': 7,
+            'email': 'cliente@test.com',
+            'nombre': 'Juan',
+            'apellido': 'Pérez',
+            'celular': '+598991234567',
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      // GET /usuarios/perfil no está disponible en el backend actual (500).
+      return http.Response(
+        jsonEncode({'mensaje': 'Error interno del servidor'}),
+        500,
+      );
+    });
+
+    final repository = ClienteProfileRepository(api: ApiClient(client: client));
+
+    final saved = await repository.actualizarPerfil(
+      const ActualizarPerfilData(
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        calle: 'Calle',
+        numero: '1',
+        ciudad: 'Montevideo',
+        codigoPostal: '11000',
+        celular: '+598991234567',
+      ),
+    );
+    expect(saved.celular, '+598991234567');
+
+    // Simula "salir y volver a entrar": nueva pantalla de perfil, nuevo
+    // getOrFetch(). El GET real falla (500) así que debería caer a la
+    // caché que dejó actualizarPerfil, con el celular todavía adentro.
+    final reabierto = await repository.getOrFetch();
+    expect(reabierto.celular, '+598991234567');
   });
 
   test('actualizarPerfil manda celular solo si viene con contenido', () async {
