@@ -370,6 +370,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             label: 'Correo electrónico',
                             value: profile.email,
                           ),
+                          _ProfileInfoRow(
+                            icon: Icons.phone_iphone,
+                            label: 'Celular',
+                            value: profile.celular?.trim().isNotEmpty == true
+                                ? profile.celular!
+                                : 'Sin celular registrado',
+                            muted: profile.celular?.trim().isNotEmpty != true,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),

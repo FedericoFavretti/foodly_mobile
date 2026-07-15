@@ -395,7 +395,7 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
                           crossAxisCount: 2,
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
-                          childAspectRatio: 0.72,
+                          childAspectRatio: 0.6,
                         ),
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {

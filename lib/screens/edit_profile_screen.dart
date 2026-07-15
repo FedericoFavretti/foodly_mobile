@@ -43,9 +43,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _fotoFilename;
   bool _isLoading = false;
 
-  /// Arranca siempre vacío: el backend no devuelve el celular guardado en
-  /// ningún endpoint de perfil hoy, así que no hay forma de precargarlo.
-  String _celular = '';
+  /// Solo se conoce si `widget.profile` ya lo trae cacheado de un guardado
+  /// anterior (el backend lo devuelve en la respuesta de `PUT /perfil`,
+  /// pero no hay ningún GET que lo precargue en frío).
+  late String _celular;
 
   @override
   void initState() {
@@ -59,6 +60,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _codigoPostalController = TextEditingController(
       text: profile.direccion?.codigoPostal ?? '',
     );
+    _celular = profile.celular ?? '';
   }
 
   @override
@@ -226,6 +228,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 16),
             PhoneField(
+              initialValue: _celular,
               enabled: !_isLoading,
               onChanged: (value) => _celular = value,
             ),

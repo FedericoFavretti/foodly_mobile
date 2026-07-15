@@ -84,12 +84,14 @@ class _CalificarDialogState extends State<CalificarDialog> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (i) {
                 final star = i + 1;
-                return IconButton(
-                  onPressed: () => setState(() => _puntaje = star),
-                  icon: Icon(
-                    star <= _puntaje ? Icons.star : Icons.star_border,
-                    color: FoodlyColors.amarillo,
-                    size: 36,
+                return Expanded(
+                  child: IconButton(
+                    onPressed: () => setState(() => _puntaje = star),
+                    icon: Icon(
+                      star <= _puntaje ? Icons.star : Icons.star_border,
+                      color: FoodlyColors.amarillo,
+                      size: 36,
+                    ),
                   ),
                 );
               }),
