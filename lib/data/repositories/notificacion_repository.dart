@@ -43,7 +43,7 @@ class NotificacionRepository {
   }
 
   Future<void> marcarLeida(int id) async {
-    await _api.post(
+    await _api.put(
       ApiConstants.notificacionLeidaEndpoint(id),
       const <String, dynamic>{},
       requiresAuth: true,

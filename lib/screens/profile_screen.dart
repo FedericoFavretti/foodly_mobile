@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/auth/biometric_service.dart';
 import '../core/errors/api_exception.dart';
+import '../core/notifications/push_notification_service.dart';
 import '../core/navigation/foodly_page_route.dart';
 import '../data/models/calificacion_detalle_model.dart';
 import '../data/models/calificacion_global_model.dart';
@@ -177,6 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed != true || !mounted) return;
 
+    await PushNotificationService.instance.eliminarToken();
     await _authRepository.logout();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(

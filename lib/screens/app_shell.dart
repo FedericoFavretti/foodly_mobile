@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../core/network/api_client.dart';
+import '../core/notifications/push_notification_service.dart';
 import '../core/providers/notificacion_notifier.dart';
 import '../data/repositories/notificacion_repository.dart';
 import '../theme/foodly_colors.dart';
 import '../widgets/cart_fab.dart';
 import '../widgets/session_watcher.dart';
+import '../main.dart';
 import 'historial_screen.dart';
 import 'main_screen.dart';
 import 'notificaciones_screen.dart';
@@ -38,6 +40,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       NotificacionRepository(ApiClient()),
     );
     _notificacionNotifier.startPolling();
+
+    PushNotificationService.instance.initialize(
+      navigatorKey: FoodlyApp.navigatorKey,
+    );
   }
 
   @override
