@@ -83,6 +83,46 @@ void main() {
 
       expect(plato.disponible, isTrue);
     });
+
+    test('fromJson usa el campo "imagen" (singular) del backend', () {
+      final plato = PlatoModel.fromJson({
+        'id': 1,
+        'nombre': 'Test',
+        'descripcion': '',
+        'precio': 100,
+        'imagen': 'https://cdn.test/plato.jpg',
+        'dtLocal': {'id': 2},
+      });
+
+      expect(plato.imagenPrincipal, 'https://cdn.test/plato.jpg');
+    });
+
+    test('fromJson usa "imagenes" como fallback si no hay "imagen"', () {
+      final plato = PlatoModel.fromJson({
+        'id': 1,
+        'nombre': 'Test',
+        'descripcion': '',
+        'precio': 100,
+        'imagenes': ['https://cdn.test/legacy.jpg'],
+        'dtLocal': {'id': 2},
+      });
+
+      expect(plato.imagenPrincipal, 'https://cdn.test/legacy.jpg');
+    });
+
+    test('fromJson parsea dtCategoria', () {
+      final plato = PlatoModel.fromJson({
+        'id': 1,
+        'nombre': 'Test',
+        'descripcion': '',
+        'precio': 100,
+        'dtLocal': {'id': 2},
+        'dtCategoria': {'id': 7, 'nombre': 'Postres', 'idLocal': 2},
+      });
+
+      expect(plato.categoriaId, 7);
+      expect(plato.categoriaNombre, 'Postres');
+    });
   });
 
   group('CatalogFilter', () {
@@ -115,6 +155,85 @@ void main() {
         result[0].calificacionGlobal >= result[1].calificacionGlobal,
         isTrue,
       );
+    });
+
+    test('filterPlatos filtra por categoriaId', () {
+      const entrada = PlatoModel(
+        id: 1,
+        nombre: 'Empanada',
+        descripcion: '',
+        precio: 100,
+        imagenes: [],
+        disponible: true,
+        localId: 1,
+        categoriaId: 1,
+        categoriaNombre: 'Entradas',
+      );
+      const postre = PlatoModel(
+        id: 2,
+        nombre: 'Flan',
+        descripcion: '',
+        precio: 150,
+        imagenes: [],
+        disponible: true,
+        localId: 1,
+        categoriaId: 2,
+        categoriaNombre: 'Postres',
+      );
+
+      final result = CatalogFilter.filterPlatos(
+        platos: [entrada, postre],
+        localId: 1,
+        categoriaId: 2,
+      );
+
+      expect(result.length, 1);
+      expect(result.first.nombre, 'Flan');
+    });
+
+    test('categoriasDeLocal deduplica y ordena por nombre', () {
+      const a = PlatoModel(
+        id: 1,
+        nombre: 'Empanada',
+        descripcion: '',
+        precio: 100,
+        imagenes: [],
+        disponible: true,
+        localId: 1,
+        categoriaId: 2,
+        categoriaNombre: 'Postres',
+      );
+      const b = PlatoModel(
+        id: 2,
+        nombre: 'Flan',
+        descripcion: '',
+        precio: 150,
+        imagenes: [],
+        disponible: true,
+        localId: 1,
+        categoriaId: 2,
+        categoriaNombre: 'Postres',
+      );
+      const c = PlatoModel(
+        id: 3,
+        nombre: 'Milanesa',
+        descripcion: '',
+        precio: 300,
+        imagenes: [],
+        disponible: true,
+        localId: 1,
+        categoriaId: 1,
+        categoriaNombre: 'Principales',
+      );
+
+      final result = CatalogFilter.categoriasDeLocal(
+        platos: [a, b, c],
+        localId: 1,
+      );
+
+      expect(result.length, 2);
+      expect(result[0].nombre, 'Postres');
+      expect(result[1].nombre, 'Principales');
     });
   });
 
@@ -691,7 +810,9 @@ void main() {
       expect(items.first.localNombre, 'Pizza Napoli');
     });
 
-    test('API envía query params de búsqueda global', () async {
+    test(
+        'API no manda "nombre" (backend matchea palabra completa, no '
+        'substring) y pide la página máxima', () async {
       Map<String, String>? capturedParams;
 
       final body = jsonEncode({
@@ -727,11 +848,51 @@ void main() {
       );
 
       expect(capturedParams, {
-        'nombre': 'burger',
+        'tamanio': '100',
         'precioMasAlto': 'true',
       });
       expect(items.length, 1);
       expect(items.first.localNombre, 'Burger House');
+    });
+
+    test('filtra client-side por texto parcial (el backend no lo hace)',
+        () async {
+      final body = jsonEncode({
+        'platos': [
+          {
+            'id': 10,
+            'nombre': 'Bacon Cheese Superburger',
+            'precio': 400.0,
+            'disponible': true,
+            'imagenes': [],
+            'dtLocal': {'id': 1, 'nombre': 'Burger House'},
+          },
+          {
+            'id': 11,
+            'nombre': 'Milanesa',
+            'precio': 350.0,
+            'disponible': true,
+            'imagenes': [],
+            'dtLocal': {'id': 1, 'nombre': 'Burger House'},
+          },
+        ],
+        'promociones': [],
+      });
+
+      final client = MockClient((request) async {
+        return http.Response(body, 200);
+      });
+
+      final repository = CatalogRepository(
+        dataSource: ApiCatalogDataSource(api: ApiClient(client: client)),
+      );
+
+      final items = await repository.buscarPlatos(
+        const BusquedaPlatosFilter(query: 'burger'),
+      );
+
+      expect(items.length, 1);
+      expect(items.first.plato.nombre, 'Bacon Cheese Superburger');
     });
   });
 }

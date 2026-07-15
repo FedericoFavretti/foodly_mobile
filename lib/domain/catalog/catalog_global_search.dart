@@ -7,6 +7,7 @@ import 'plato_busqueda_item.dart';
 abstract final class CatalogGlobalSearch {
   static List<PlatoBusquedaItem> fromResponse(
     Map<String, dynamic> decoded, {
+    String query = '',
     bool soloPromociones = false,
     double? precioMaximo,
   }) {
@@ -38,6 +39,18 @@ abstract final class CatalogGlobalSearch {
 
     if (precioMaximo != null) {
       items = items.where((item) => item.plato.precio <= precioMaximo).toList();
+    }
+
+    // El backend matchea `nombre` por palabra completa (case-sensitive), no
+    // por substring, así que el texto se filtra acá para que la búsqueda en
+    // vivo funcione con coincidencias parciales.
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isNotEmpty) {
+      items = items
+          .where((item) =>
+              item.plato.nombre.toLowerCase().contains(normalizedQuery) ||
+              item.plato.descripcion.toLowerCase().contains(normalizedQuery))
+          .toList();
     }
 
     return items;

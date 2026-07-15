@@ -39,6 +39,7 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
   late Future<_LocalDetailData> _dataFuture;
   String _query = '';
   PlatoSortOption _sort = PlatoSortOption.nombre;
+  int? _categoriaId;
 
   @override
   void initState() {
@@ -233,11 +234,20 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
           }
 
           final data = snapshot.data!;
+          final categorias = CatalogFilter.categoriasDeLocal(
+            platos: data.platos,
+            localId: widget.localId,
+          );
+          if (_categoriaId != null &&
+              categorias.every((c) => c.id != _categoriaId)) {
+            _categoriaId = null;
+          }
           final platos = CatalogFilter.filterPlatos(
             platos: data.platos,
             localId: widget.localId,
             query: _query,
             sort: _sort,
+            categoriaId: _categoriaId,
           );
 
           return RefreshIndicator(
@@ -319,6 +329,29 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
                     ),
                   ),
                 ),
+                if (categorias.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      child: Row(
+                        children: [
+                          FoodlyFilterChip(
+                            label: 'Todas',
+                            selected: _categoriaId == null,
+                            onTap: () => setState(() => _categoriaId = null),
+                          ),
+                          for (final categoria in categorias)
+                            FoodlyFilterChip(
+                              label: categoria.nombre,
+                              selected: _categoriaId == categoria.id,
+                              onTap: () =>
+                                  setState(() => _categoriaId = categoria.id),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 if (!data.local.estaAbierto)
                   const SliverToBoxAdapter(
                     child: Padding(
@@ -332,12 +365,17 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
                     child: EmptyState(
                       icon: Icons.restaurant_menu,
                       title: 'Sin platos',
-                      subtitle: _query.trim().isEmpty
+                      subtitle: _query.trim().isEmpty && _categoriaId == null
                           ? 'Este local aún no tiene platos publicados.'
-                          : 'No se encontraron platos con esa búsqueda.',
-                      actionLabel: _query.trim().isNotEmpty ? 'Limpiar búsqueda' : null,
-                      onAction: _query.trim().isNotEmpty
-                          ? () => _searchController.clear()
+                          : 'No se encontraron platos con esos filtros.',
+                      actionLabel: _query.trim().isNotEmpty || _categoriaId != null
+                          ? 'Limpiar filtros'
+                          : null,
+                      onAction: _query.trim().isNotEmpty || _categoriaId != null
+                          ? () {
+                              _searchController.clear();
+                              setState(() => _categoriaId = null);
+                            }
                           : null,
                     ),
                   )
