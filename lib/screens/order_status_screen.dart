@@ -69,7 +69,12 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     final uri = Uri.tryParse(_pedido.mpInitPoint!.trim());
     if (uri == null) return;
     _abrioMercadoPago = true;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    // inAppBrowserView (Custom Tabs / SFSafariViewController) mantiene el
+    // checkout dentro de la tarea de la app: "salir" cierra la pestaña y
+    // vuelve a Foodly. Con externalApplication se abría en el navegador
+    // como una pestaña más, así que "salir" navegaba por su historial
+    // (a veces cayendo en una pestaña vieja de login) en vez de volver acá.
+    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
   }
 
   bool get _pagado =>
@@ -94,10 +99,11 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: (pagoCompletado
-                          ? const Color(0xFF2E7D32)
-                          : FoodlyColors.celeste)
-                      .withValues(alpha: 0.12),
+                  color:
+                      (pagoCompletado
+                              ? const Color(0xFF2E7D32)
+                              : FoodlyColors.celeste)
+                          .withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -121,8 +127,8 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                 pagoCompletado
                     ? 'Tu pago fue aprobado. El local ya recibió tu pedido.'
                     : esMercadoPago
-                        ? 'Completá el pago en Mercado Pago para que el local reciba tu pedido.'
-                        : 'Pagás en efectivo al recibir el pedido.',
+                    ? 'Completá el pago en Mercado Pago para que el local reciba tu pedido.'
+                    : 'Pagás en efectivo al recibir el pedido.',
                 style: GoogleFonts.nunito(
                   fontSize: 15,
                   height: 1.4,
