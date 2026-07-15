@@ -187,11 +187,15 @@ void main() {
       expect(capturedBody?['nuevoCorreo'], 'nuevo@test.com');
     });
 
-    test('confirmarCambioCorreo envía token sin auth', () async {
+    test('confirmarCambioCorreo envía el token y el JWT del usuario', () async {
+      await SessionManager.saveToken('sesion.activa');
+
       Map<String, dynamic>? capturedBody;
+      String? capturedAuthHeader;
 
       final client = MockClient((request) async {
         expect(request.url.path, '/api/v1/usuarios/cambiar-correo/confirmar');
+        capturedAuthHeader = request.headers['Authorization'];
         capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
         return http.Response('', 200);
       });
@@ -200,6 +204,8 @@ void main() {
       await repository.confirmarCambioCorreo('token-abc');
 
       expect(capturedBody?['token'], 'token-abc');
+      // El backend rechaza este endpoint con 403 si no viaja el JWT.
+      expect(capturedAuthHeader, 'Bearer sesion.activa');
     });
   });
 }

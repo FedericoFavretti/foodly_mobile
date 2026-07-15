@@ -654,7 +654,7 @@ class AccountRepository {
 
         {'token': token.trim()},
 
-        requiresAuth: false,
+        requiresAuth: true,
 
       );
 

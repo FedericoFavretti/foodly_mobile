@@ -71,6 +71,12 @@ class _ConfirmEmailChangeScreenState extends State<ConfirmEmailChangeScreen> {
         _status = _ConfirmStatus.success;
         _message = AccountRepository.emailChangeSuccessMessage;
       });
+    } on SessionExpiredException {
+      if (!mounted) return;
+      setState(() {
+        _status = _ConfirmStatus.error;
+        _message = 'Tu sesión expiró. Volvé a iniciar sesión y repetí el cambio de correo.';
+      });
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
