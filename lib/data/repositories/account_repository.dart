@@ -214,7 +214,7 @@ class AccountRepository {
 
         ApiConstants.reenviarActivacionEndpoint,
 
-        {'email': email.trim()},
+        {'correo': email.trim()},
 
         requiresAuth: false,
 
