@@ -3,7 +3,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'core/auth/biometric_service.dart';
 import 'core/navigation/foodly_deep_link_listener.dart';
 import 'core/navigation/foodly_page_route.dart';
 import 'core/notifications/push_notification_service.dart';
@@ -270,31 +269,11 @@ class _AppStartupState extends State<_AppStartup> {
 
   Future<void> _checkSession() async {
     final hasSession = await SessionManager.hasSession();
-    final biometricEnabled = await SessionManager.getBiometricEnabled();
-    // Sin sesión activa (expiró, o pasó bastante desde el último login) la
-    // huella igual puede servir para entrar si hay una credencial guardada:
-    // BiometricLockScreen la usa para reautenticar de verdad contra el
-    // backend, ya que no hay refresh token.
-    final hasBiometricCredential =
-        !hasSession && await SessionManager.getBiometricCredential() != null;
     if (!mounted) return;
-
-    final showBiometricLock =
-        biometricEnabled == true &&
-        (hasSession || hasBiometricCredential) &&
-        await LocalAuthBiometricService().isAvailable();
-    if (!mounted) return;
-
-    if (showBiometricLock) {
-      Navigator.pushReplacementNamed(context, BiometricLockScreen.routeName);
-      return;
-    }
-
     if (!hasSession) {
       setState(() => _ready = true);
       return;
     }
-
     Navigator.pushReplacementNamed(context, MainScreen.routeName);
   }
 
