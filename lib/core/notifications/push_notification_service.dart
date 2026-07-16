@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -25,7 +26,9 @@ final FlutterLocalNotificationsPlugin _localNotifications =
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Firebase ya está inicializado en este isolate por el plugin.
   // Solo logueamos; las notificaciones de sistema las muestra FCM automáticamente.
-  debugPrint('[FCM Background] ${message.messageId} — ${message.notification?.title}');
+  if (kDebugMode) {
+    print('[FCM Background] ${message.messageId} — ${message.notification?.title}');
+  }
 }
 
 class PushNotificationService {
@@ -34,14 +37,28 @@ class PushNotificationService {
 
   final _api = ApiClient();
   String? _currentToken;
+  bool _isInitialized = false;
+  bool _isInitializing = false;
 
   /// Inicializa FCM, permisos, canal Android y escuchadores.
   /// Llamar una vez tras login exitoso.
+  /// Es seguro llamar múltiples veces; solo se inicializa una vez.
   Future<void> initialize({
     required GlobalKey<NavigatorState> navigatorKey,
   }) async {
-    // Registrar handler de background
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    // Si ya está inicializado o inicializándose, no hacer nada
+    if (_isInitialized || _isInitializing) {
+      if (kDebugMode) {
+        print('[FCM] Ya inicializado o en proceso de inicialización.');
+      }
+      return;
+    }
+
+    _isInitializing = true;
+
+    try {
+      // Registrar handler de background
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     // Permisos (iOS + Android 13+)
     await FirebaseMessaging.instance.requestPermission(
@@ -87,31 +104,57 @@ class PushNotificationService {
       _manejarTap(message, navigatorKey);
     });
 
-    // Tap cuando la app estaba cerrada
-    final initialMessage =
-        await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null) {
-      // Esperar a que el navigator esté montado
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _manejarTap(initialMessage, navigatorKey);
-      });
+      // Tap cuando la app estaba cerrada
+      final initialMessage =
+          await FirebaseMessaging.instance.getInitialMessage();
+      if (initialMessage != null) {
+        // Esperar a que el navigator esté montado
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _manejarTap(initialMessage, navigatorKey);
+        });
+      }
+
+      _isInitialized = true;
+      if (kDebugMode) {
+        print('[FCM] Inicialización completada exitosamente.');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[FCM] Error durante inicialización: $e');
+      }
+      rethrow;
+    } finally {
+      _isInitializing = false;
     }
   }
 
   /// Elimina el token actual del backend (llamar antes del logout).
   Future<void> eliminarToken() async {
-    final token = _currentToken ??
-        await FirebaseMessaging.instance.getToken();
-    if (token == null) return;
+    if (!_isInitialized) {
+      if (kDebugMode) {
+        print('[FCM] No inicializado, nada que eliminar.');
+      }
+      return;
+    }
+
     try {
-      await _api.delete(
-        ApiConstants.notificacionTokenEndpoint,
-        requiresAuth: true,
-      );
+      final token = _currentToken ?? await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await _api.delete(
+          ApiConstants.notificacionTokenEndpoint,
+          requiresAuth: true,
+          body: {'token': token},
+        );
+      }
       await FirebaseMessaging.instance.deleteToken();
       _currentToken = null;
+      if (kDebugMode) {
+        print('[FCM] Token eliminado del backend y del dispositivo.');
+      }
     } catch (e) {
-      debugPrint('[FCM] Error eliminando token: $e');
+      if (kDebugMode) {
+        print('[FCM] Error eliminando token: $e');
+      }
     }
   }
 
@@ -122,7 +165,9 @@ class PushNotificationService {
       _currentToken = token;
       await _registrarEnBackend(token);
     } catch (e) {
-      debugPrint('[FCM] Error obteniendo token: $e');
+      if (kDebugMode) {
+        print('[FCM] Error obteniendo token: $e');
+      }
     }
   }
 
@@ -136,9 +181,13 @@ class PushNotificationService {
         },
         requiresAuth: true,
       );
-      debugPrint('[FCM] Token registrado en backend.');
+      if (kDebugMode) {
+        print('[FCM] Token registrado en backend.');
+      }
     } catch (e) {
-      debugPrint('[FCM] Error registrando token en backend: $e');
+      if (kDebugMode) {
+        print('[FCM] Error registrando token en backend: $e');
+      }
     }
   }
 
@@ -176,6 +225,7 @@ class PushNotificationService {
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
       final tipo = data['tipo'] as String?;
+      final pedidoIdStr = data['pedidoId'] as String?;
 
       final navigator = navigatorKey.currentState;
       if (navigator == null) return;
@@ -184,6 +234,14 @@ class PushNotificationService {
         case 'pedido_confirmado':
         case 'pedido_rechazado':
         case 'factura_generada':
+          // Validar que pedidoId sea un número válido
+          final pedidoId = pedidoIdStr != null ? int.tryParse(pedidoIdStr) : null;
+          if (pedidoId == null || pedidoId <= 0) {
+            if (kDebugMode) {
+              print('[FCM] pedidoId inválido: $pedidoIdStr');
+            }
+            return;
+          }
           // Navegar a historial (tab 1 del AppShell)
           navigator.pushNamedAndRemoveUntil(
             '/main',
@@ -191,10 +249,14 @@ class PushNotificationService {
             arguments: 1,
           );
         default:
-          debugPrint('[FCM] Tipo de notificación desconocido: $tipo');
+          if (kDebugMode) {
+            print('[FCM] Tipo de notificación desconocido: $tipo');
+          }
       }
     } catch (e) {
-      debugPrint('[FCM] Error parseando payload: $e');
+      if (kDebugMode) {
+        print('[FCM] Error parseando payload: $e');
+      }
     }
   }
 }

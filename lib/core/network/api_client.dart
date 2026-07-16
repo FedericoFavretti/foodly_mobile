@@ -81,10 +81,18 @@ class ApiClient {
   Future<http.Response> delete(
     String endpoint, {
     bool requiresAuth = true,
+    Map<String, dynamic>? body,
   }) async {
     return _execute(() async {
       final headers = await _buildHeaders(requiresAuth: requiresAuth);
       final uri = Uri.parse('$_baseUrl$endpoint');
+      if (body != null) {
+        return _client.delete(
+          uri,
+          headers: headers,
+          body: jsonEncode(body),
+        );
+      }
       return _client.delete(uri, headers: headers);
     }, requiresAuth: requiresAuth);
   }
