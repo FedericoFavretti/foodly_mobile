@@ -40,7 +40,7 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
 
   late Future<_LocalDetailData> _dataFuture;
   String _query = '';
-  PlatoSortOption _sort = PlatoSortOption.nombre;
+  PlatoSortOption _sort = PlatoSortOption.nombreAsc;
   int? _categoriaId;
 
   @override
@@ -61,6 +61,12 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
   Future<void> _reloadData() async {
     setState(() => _dataFuture = _loadData());
     await _dataFuture;
+  }
+
+  /// Tocar el chip de un criterio ya seleccionado invierte el orden
+  /// (asc ↔ desc); tocar el otro criterio lo selecciona en ascendente.
+  void _tapSortChip(PlatoSortOption ascendente, PlatoSortOption descendente) {
+    setState(() => _sort = _sort == ascendente ? descendente : ascendente);
   }
 
   Future<void> _agregarPlato(
@@ -123,8 +129,9 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
 
     MiCalificacionLocalModel? miCalificacion;
     try {
-      miCalificacion =
-          await _calificacionRepository.obtenerMiCalificacion(widget.localId);
+      miCalificacion = await _calificacionRepository.obtenerMiCalificacion(
+        widget.localId,
+      );
     } catch (_) {
       // Silencioso: la card sigue permitiendo calificar.
     }
@@ -187,9 +194,9 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
       );
     } on ApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.userMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.userMessage)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -215,7 +222,9 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
             return CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
-                  child: _LocalMenuHeroSkeleton(onBack: () => Navigator.pop(context)),
+                  child: _LocalMenuHeroSkeleton(
+                    onBack: () => Navigator.pop(context),
+                  ),
                 ),
                 const SliverToBoxAdapter(child: PlatoListSkeleton(count: 3)),
               ],
@@ -226,8 +235,8 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
             final message = snapshot.error is ApiException
                 ? (snapshot.error as ApiException).userMessage
                 : snapshot.error is NetworkException
-                    ? (snapshot.error as NetworkException).userMessage
-                    : 'Ocurrió un error al cargar el local.';
+                ? (snapshot.error as NetworkException).userMessage
+                : 'Ocurrió un error al cargar el local.';
             return _ErrorScaffold(
               message: message,
               onBack: () => Navigator.pop(context),
@@ -317,15 +326,45 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
                       children: [
                         FoodlyFilterChip(
                           label: 'Nombre',
-                          selected: _sort == PlatoSortOption.nombre,
-                          onTap: () =>
-                              setState(() => _sort = PlatoSortOption.nombre),
+                          selected:
+                              _sort == PlatoSortOption.nombreAsc ||
+                              _sort == PlatoSortOption.nombreDesc,
+                          onTap: () => _tapSortChip(
+                            PlatoSortOption.nombreAsc,
+                            PlatoSortOption.nombreDesc,
+                          ),
+                          trailing: switch (_sort) {
+                            PlatoSortOption.nombreAsc => const Icon(
+                              Icons.arrow_upward,
+                              size: 14,
+                            ),
+                            PlatoSortOption.nombreDesc => const Icon(
+                              Icons.arrow_downward,
+                              size: 14,
+                            ),
+                            _ => null,
+                          },
                         ),
                         FoodlyFilterChip(
                           label: 'Precio',
-                          selected: _sort == PlatoSortOption.precio,
-                          onTap: () =>
-                              setState(() => _sort = PlatoSortOption.precio),
+                          selected:
+                              _sort == PlatoSortOption.precioAsc ||
+                              _sort == PlatoSortOption.precioDesc,
+                          onTap: () => _tapSortChip(
+                            PlatoSortOption.precioAsc,
+                            PlatoSortOption.precioDesc,
+                          ),
+                          trailing: switch (_sort) {
+                            PlatoSortOption.precioAsc => const Icon(
+                              Icons.arrow_upward,
+                              size: 14,
+                            ),
+                            PlatoSortOption.precioDesc => const Icon(
+                              Icons.arrow_downward,
+                              size: 14,
+                            ),
+                            _ => null,
+                          },
                         ),
                       ],
                     ),
@@ -370,7 +409,8 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
                       subtitle: _query.trim().isEmpty && _categoriaId == null
                           ? 'Este local aún no tiene platos publicados.'
                           : 'No se encontraron platos con esos filtros.',
-                      actionLabel: _query.trim().isNotEmpty || _categoriaId != null
+                      actionLabel:
+                          _query.trim().isNotEmpty || _categoriaId != null
                           ? 'Limpiar filtros'
                           : null,
                       onAction: _query.trim().isNotEmpty || _categoriaId != null
@@ -389,7 +429,9 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
                         children: [
                           Text(
                             'Menú',
-                            style: FoodlyTheme.serifSection.copyWith(fontSize: 22),
+                            style: FoodlyTheme.serifSection.copyWith(
+                              fontSize: 22,
+                            ),
                           ),
                           const Spacer(),
                           Text(
@@ -407,17 +449,14 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final plato = platos[index];
-                          return PlatoCard(
-                            plato: plato,
-                            canAdd: data.local.estaAbierto,
-                            onAdd: () => _agregarPlato(context, data, plato),
-                          );
-                        },
-                        childCount: platos.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final plato = platos[index];
+                        return PlatoCard(
+                          plato: plato,
+                          canAdd: data.local.estaAbierto,
+                          onAdd: () => _agregarPlato(context, data, plato),
+                        );
+                      }, childCount: platos.length),
                     ),
                   ),
                 ],
@@ -431,10 +470,7 @@ class _LocalDetailScreenState extends State<LocalDetailScreen> {
 }
 
 class _LocalMenuHero extends StatelessWidget {
-  const _LocalMenuHero({
-    required this.local,
-    required this.onBack,
-  });
+  const _LocalMenuHero({required this.local, required this.onBack});
 
   final LocalModel local;
   final VoidCallback onBack;
@@ -491,9 +527,11 @@ class _LocalMenuHero extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         _HeroBadge(
-                          label: '★ ${local.calificacionGlobal.toStringAsFixed(1)}',
-                          background:
-                              FoodlyColors.grisOscuro.withValues(alpha: 0.72),
+                          label:
+                              '★ ${local.calificacionGlobal.toStringAsFixed(1)}',
+                          background: FoodlyColors.grisOscuro.withValues(
+                            alpha: 0.72,
+                          ),
                           foreground: FoodlyColors.amarillo,
                         ),
                       ],
@@ -527,7 +565,9 @@ class _LocalMenuHero extends StatelessWidget {
                           Icon(
                             Icons.location_on_outlined,
                             size: 16,
-                            color: FoodlyColors.amarillo.withValues(alpha: 0.95),
+                            color: FoodlyColors.amarillo.withValues(
+                              alpha: 0.95,
+                            ),
                           ),
                           const SizedBox(width: 4),
                           Expanded(
@@ -545,7 +585,8 @@ class _LocalMenuHero extends StatelessWidget {
                         ],
                       ),
                     ],
-                    if (local.telefonoFijo != null || local.celular != null) ...[
+                    if (local.telefonoFijo != null ||
+                        local.celular != null) ...[
                       const SizedBox(height: 10),
                       _LocalPhoneButtons(local: local),
                     ],
@@ -609,10 +650,7 @@ class _LocalMenuHeroSkeleton extends StatelessWidget {
             ),
           ),
         ),
-        Container(
-          height: 22,
-          color: FoodlyColors.blanco,
-        ),
+        Container(height: 22, color: FoodlyColors.blanco),
       ],
     );
   }
@@ -797,13 +835,15 @@ class _ClosedBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: FoodlyColors.amarillo.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: FoodlyColors.amarillo.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: FoodlyColors.amarillo.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, color: FoodlyColors.grisOscuro, size: 20),
+          const Icon(
+            Icons.info_outline,
+            color: FoodlyColors.grisOscuro,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

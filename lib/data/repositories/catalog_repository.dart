@@ -33,8 +33,8 @@ class MockCatalogDataSource implements CatalogDataSource {
     final query = body['nombre'] as String? ?? '';
     final soloAbiertos = body['estaAbierto'] == true;
     final sort = body['ordenarPor'] == 'calificacion'
-        ? LocalSortOption.calificacion
-        : LocalSortOption.nombre;
+        ? LocalSortOption.calificacionDesc
+        : LocalSortOption.nombreAsc;
 
     return CatalogFilter.filterLocales(
       locales: mockLocales,
@@ -76,13 +76,14 @@ class MockCatalogDataSource implements CatalogDataSource {
       platos = platos.where((p) => p.tienePromocion).toList();
     }
     if (filter.precioMaximo != null) {
-      platos =
-          platos.where((p) => p.precio <= filter.precioMaximo!).toList();
+      platos = platos.where((p) => p.precio <= filter.precioMaximo!).toList();
     }
 
     switch (filter.sort) {
-      case PlatoSearchSort.nombre:
+      case PlatoSearchSort.nombreAsc:
         platos.sort((a, b) => a.nombre.compareTo(b.nombre));
+      case PlatoSearchSort.nombreDesc:
+        platos.sort((a, b) => b.nombre.compareTo(a.nombre));
       case PlatoSearchSort.precioAsc:
         platos.sort((a, b) => a.precio.compareTo(b.precio));
       case PlatoSearchSort.precioDesc:
@@ -204,7 +205,8 @@ class ApiCatalogDataSource implements CatalogDataSource {
 
     throw ApiException(
       statusCode: response.statusCode,
-      userMessage: backendMessage ??
+      userMessage:
+          backendMessage ??
           'No pudimos cargar los platos. Intentalo más tarde.',
       debugInfo: response.body,
     );
@@ -251,10 +253,7 @@ class ApiCatalogDataSource implements CatalogDataSource {
     try {
       final promociones = _parsePromocionesList(decoded['promociones']);
       if (promociones.isEmpty) return platos;
-      return CatalogSearchMerge.merge(
-        platos: platos,
-        promociones: promociones,
-      );
+      return CatalogSearchMerge.merge(platos: platos, promociones: promociones);
     } catch (_) {
       return platos;
     }
@@ -307,6 +306,7 @@ class ApiCatalogDataSource implements CatalogDataSource {
         query: filter.query,
         soloPromociones: filter.soloPromociones,
         precioMaximo: filter.precioMaximo,
+        sort: filter.sort,
       );
     }
 
@@ -318,8 +318,8 @@ class ApiCatalogDataSource implements CatalogDataSource {
 
     throw ApiException(
       statusCode: response.statusCode,
-      userMessage: backendMessage ??
-          'No pudimos buscar platos. Intentalo más tarde.',
+      userMessage:
+          backendMessage ?? 'No pudimos buscar platos. Intentalo más tarde.',
       debugInfo: response.body,
     );
   }
@@ -327,10 +327,11 @@ class ApiCatalogDataSource implements CatalogDataSource {
 
 class CatalogRepository {
   CatalogRepository({CatalogDataSource? dataSource})
-      : _dataSource = dataSource ??
-            (ApiConstants.useMockCatalog
-                ? const MockCatalogDataSource()
-                : ApiCatalogDataSource());
+    : _dataSource =
+          dataSource ??
+          (ApiConstants.useMockCatalog
+              ? const MockCatalogDataSource()
+              : ApiCatalogDataSource());
 
   final CatalogDataSource _dataSource;
 

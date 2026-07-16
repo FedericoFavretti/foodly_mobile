@@ -12,7 +12,7 @@ abstract class BiometricService {
 
 class LocalAuthBiometricService implements BiometricService {
   LocalAuthBiometricService({LocalAuthentication? auth})
-      : _auth = auth ?? LocalAuthentication();
+    : _auth = auth ?? LocalAuthentication();
 
   final LocalAuthentication _auth;
 
@@ -34,24 +34,32 @@ class LocalAuthBiometricService implements BiometricService {
       final ok = await _auth.authenticate(
         localizedReason: 'Confirmá tu identidad para ingresar a Foodly',
         options: const AuthenticationOptions(
-          biometricOnly: false,
+          biometricOnly: true,
           stickyAuth: true,
         ),
       );
       return ok ? BiometricResult.success : BiometricResult.failed;
     } on PlatformException catch (e) {
-      switch (e.code) {
-        case 'NotEnrolled':
-        case 'NotAvailable':
-          return BiometricResult.notEnrolled;
-        case 'LockedOut':
-        case 'PermanentlyLockedOut':
-          return BiometricResult.lockedOut;
-        default:
-          return BiometricResult.unavailable;
-      }
+      return mapAuthError(e.code);
     } catch (_) {
       return BiometricResult.unavailable;
+    }
+  }
+
+  /// Mapea el `code` de un `PlatformException` de `local_auth` al resultado
+  /// correspondiente. Función pura (sin el plugin nativo) para poder
+  /// testear el mapeo directamente.
+  static BiometricResult mapAuthError(String code) {
+    switch (code) {
+      case 'NotEnrolled':
+        return BiometricResult.notEnrolled;
+      case 'NotAvailable':
+        return BiometricResult.unavailable;
+      case 'LockedOut':
+      case 'PermanentlyLockedOut':
+        return BiometricResult.lockedOut;
+      default:
+        return BiometricResult.unavailable;
     }
   }
 }

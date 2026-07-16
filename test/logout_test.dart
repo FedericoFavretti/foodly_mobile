@@ -82,5 +82,34 @@ void main() {
       expect(await SessionManager.getProfileJson(), isNull);
       expect(await SessionManager.getUsuarioInfoJson(), isNull);
     });
+
+    test(
+      'logout NO borra la credencial guardada para el login biométrico: '
+      'la huella debe poder volver a meterte sin escribir la contraseña',
+      () async {
+        await SessionManager.saveToken('fake.jwt.token');
+        await SessionManager.setBiometricEnabled(true);
+        await SessionManager.saveBiometricCredential(
+          email: 'cliente@test.com',
+          password: 'F@odly2026',
+        );
+
+        final client = MockClient((request) async {
+          return http.Response('', 200);
+        });
+        final repository = AuthRepository(api: ApiClient(client: client));
+
+        await repository.logout();
+
+        // El JWT sí se borra (la sesión activa termina de verdad)...
+        expect(await SessionManager.getToken(), isNull);
+        // ...pero la credencial guardada y la preferencia sobreviven, para
+        // que la huella pueda reautenticar la próxima vez.
+        final credential = await SessionManager.getBiometricCredential();
+        expect(credential, isNotNull);
+        expect(credential!.email, 'cliente@test.com');
+        expect(await SessionManager.getBiometricEnabled(), isTrue);
+      },
+    );
   });
 }

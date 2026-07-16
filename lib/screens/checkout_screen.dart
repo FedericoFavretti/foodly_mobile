@@ -71,7 +71,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'No pudimos cargar tu dirección guardada. Completá los campos manualmente.'),
+              'No pudimos cargar tu dirección guardada. Completá los campos manualmente.',
+            ),
           ),
         );
       }
@@ -131,7 +132,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           );
         }
         final uri = Uri.tryParse(initPoint);
-        if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        // inAppBrowserView (Custom Tabs / SFSafariViewController) mantiene
+        // el checkout dentro de la tarea de la app: "salir" vuelve a Foodly
+        // en vez de quedar navegando en el historial del navegador externo.
+        if (uri == null ||
+            !await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
           throw const ApiException(
             statusCode: 0,
             userMessage: 'No pudimos abrir Mercado Pago en tu dispositivo.',
@@ -161,7 +166,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -317,11 +324,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   FoodlyButton(
                     label: _submitting
                         ? (_medioPago == MedioPago.mercadoPago
-                            ? 'GENERANDO PAGO...'
-                            : 'CONFIRMANDO PEDIDO...')
+                              ? 'GENERANDO PAGO...'
+                              : 'CONFIRMANDO PEDIDO...')
                         : (_medioPago == MedioPago.mercadoPago
-                            ? 'PAGAR CON MERCADO PAGO'
-                            : 'CONFIRMAR PEDIDO EN EFECTIVO'),
+                              ? 'PAGAR CON MERCADO PAGO'
+                              : 'CONFIRMAR PEDIDO EN EFECTIVO'),
                     onPressed: _submitting ? null : _confirmarPedido,
                   ),
                 ],

@@ -7,6 +7,7 @@ import 'theme/foodly_colors.dart';
 import 'theme/foodly_theme.dart';
 import 'domain/cart/cart_notifier.dart';
 import 'domain/session/session_manager.dart';
+import 'screens/biometric_lock_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'data/models/pedido_response_model.dart';
@@ -35,7 +36,9 @@ Future<void> bootstrapFoodlyApp() async {
 }
 
 void main() {
-  bootstrapFoodlyApp().then((_) => runApp(const FoodlyApp())).catchError((Object error) {
+  bootstrapFoodlyApp().then((_) => runApp(const FoodlyApp())).catchError((
+    Object error,
+  ) {
     // Si el bootstrap falla, ejecutar igualmente para mostrar la app
     // en lugar de un crash silencioso.
     runApp(const FoodlyApp());
@@ -55,8 +58,9 @@ class FoodlyApp extends StatelessWidget {
         navigatorKey: navigatorKey,
         title: 'Foodly',
         debugShowCheckedModeBanner: false,
-        scrollBehavior:
-            const MaterialScrollBehavior().copyWith(overscroll: false),
+        scrollBehavior: const MaterialScrollBehavior().copyWith(
+          overscroll: false,
+        ),
         theme: FoodlyTheme.light.copyWith(
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
@@ -101,8 +105,7 @@ class FoodlyApp extends StatelessWidget {
   static Route<dynamic>? _generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case HomeScreen.routeName:
-        return FoodlyPageRoute(
-            page: const _AppStartup(), settings: settings);
+        return FoodlyPageRoute(page: const _AppStartup(), settings: settings);
       case LoginScreen.routeName:
         return FoodlyPageRoute(
           page: LoginScreen(
@@ -147,9 +150,7 @@ class FoodlyApp extends StatelessWidget {
       case ResetPasswordScreen.routeName:
         final token = settings.arguments;
         return FoodlyPageRoute(
-          page: ResetPasswordScreen(
-            token: token is String ? token : '',
-          ),
+          page: ResetPasswordScreen(token: token is String ? token : ''),
           settings: settings,
         );
       case ActivateAccountScreen.routeName:
@@ -177,6 +178,11 @@ class FoodlyApp extends StatelessWidget {
       case ChangePasswordScreen.routeName:
         return FoodlyPageRoute(
           page: const AuthGate(child: ChangePasswordScreen()),
+          settings: settings,
+        );
+      case BiometricLockScreen.routeName:
+        return FoodlyPageRoute(
+          page: const BiometricLockScreen(),
           settings: settings,
         );
       case MainScreen.routeName:
@@ -259,11 +265,11 @@ class _AppStartupState extends State<_AppStartup> {
   Future<void> _checkSession() async {
     final hasSession = await SessionManager.hasSession();
     if (!mounted) return;
-    if (hasSession) {
-      Navigator.pushReplacementNamed(context, MainScreen.routeName);
-    } else {
+    if (!hasSession) {
       setState(() => _ready = true);
+      return;
     }
+    Navigator.pushReplacementNamed(context, MainScreen.routeName);
   }
 
   @override

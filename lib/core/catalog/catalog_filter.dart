@@ -1,9 +1,14 @@
 import '../../data/models/local_model.dart';
 import '../../data/models/plato_model.dart';
 
-enum LocalSortOption { nombre, calificacion }
+enum LocalSortOption {
+  nombreAsc,
+  nombreDesc,
+  calificacionDesc,
+  calificacionAsc,
+}
 
-enum PlatoSortOption { nombre, precio }
+enum PlatoSortOption { nombreAsc, nombreDesc, precioAsc, precioDesc }
 
 /// Categoría de plato derivada del menú de un local, para armar chips de filtro.
 class PlatoCategoriaOption {
@@ -18,7 +23,7 @@ class CatalogFilter {
     required List<LocalModel> locales,
     String query = '',
     bool soloAbiertos = false,
-    LocalSortOption sort = LocalSortOption.nombre,
+    LocalSortOption sort = LocalSortOption.nombreAsc,
   }) {
     final normalizedQuery = query.trim().toLowerCase();
     var result = locales.where((local) {
@@ -29,10 +34,18 @@ class CatalogFilter {
     }).toList();
 
     switch (sort) {
-      case LocalSortOption.nombre:
+      case LocalSortOption.nombreAsc:
         result.sort((a, b) => a.nombre.compareTo(b.nombre));
-      case LocalSortOption.calificacion:
-        result.sort((a, b) => b.calificacionGlobal.compareTo(a.calificacionGlobal));
+      case LocalSortOption.nombreDesc:
+        result.sort((a, b) => b.nombre.compareTo(a.nombre));
+      case LocalSortOption.calificacionDesc:
+        result.sort(
+          (a, b) => b.calificacionGlobal.compareTo(a.calificacionGlobal),
+        );
+      case LocalSortOption.calificacionAsc:
+        result.sort(
+          (a, b) => a.calificacionGlobal.compareTo(b.calificacionGlobal),
+        );
     }
     return result;
   }
@@ -52,7 +65,7 @@ class CatalogFilter {
     required List<PlatoModel> platos,
     required int localId,
     String query = '',
-    PlatoSortOption sort = PlatoSortOption.nombre,
+    PlatoSortOption sort = PlatoSortOption.nombreAsc,
     int? categoriaId,
   }) {
     final normalizedQuery = query.trim().toLowerCase();
@@ -67,10 +80,14 @@ class CatalogFilter {
     }).toList();
 
     switch (sort) {
-      case PlatoSortOption.nombre:
+      case PlatoSortOption.nombreAsc:
         result.sort((a, b) => a.nombre.compareTo(b.nombre));
-      case PlatoSortOption.precio:
+      case PlatoSortOption.nombreDesc:
+        result.sort((a, b) => b.nombre.compareTo(a.nombre));
+      case PlatoSortOption.precioAsc:
         result.sort((a, b) => a.precio.compareTo(b.precio));
+      case PlatoSortOption.precioDesc:
+        result.sort((a, b) => b.precio.compareTo(a.precio));
     }
     return result;
   }
@@ -84,10 +101,14 @@ class CatalogFilter {
       if (id == null || nombre == null || nombre.isEmpty) continue;
       porId[id] = nombre;
     }
-    final categorias = porId.entries
-        .map((entry) => PlatoCategoriaOption(id: entry.key, nombre: entry.value))
-        .toList()
-      ..sort((a, b) => a.nombre.compareTo(b.nombre));
+    final categorias =
+        porId.entries
+            .map(
+              (entry) =>
+                  PlatoCategoriaOption(id: entry.key, nombre: entry.value),
+            )
+            .toList()
+          ..sort((a, b) => a.nombre.compareTo(b.nombre));
     return categorias;
   }
 

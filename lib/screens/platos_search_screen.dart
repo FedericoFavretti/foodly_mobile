@@ -38,10 +38,10 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
   Future<List<PlatoBusquedaItem>>? _resultsFuture;
 
   BusquedaPlatosFilter get _activeFilter => BusquedaPlatosFilter(
-        query: _query,
-        soloPromociones: _soloPromociones,
-        sort: _sort,
-      );
+    query: _query,
+    soloPromociones: _soloPromociones,
+    sort: _sort,
+  );
 
   @override
   void initState() {
@@ -133,7 +133,18 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
                 ),
                 RadioListTile<PlatoSearchSort>(
                   title: const Text('Nombre (A-Z)'),
-                  value: PlatoSearchSort.nombre,
+                  value: PlatoSearchSort.nombreAsc,
+                  groupValue: _sort,
+                  activeColor: FoodlyColors.celeste,
+                  onChanged: (value) {
+                    if (value == null) return;
+                    Navigator.pop(context);
+                    _applySort(value);
+                  },
+                ),
+                RadioListTile<PlatoSearchSort>(
+                  title: const Text('Nombre (Z-A)'),
+                  value: PlatoSearchSort.nombreDesc,
                   groupValue: _sort,
                   activeColor: FoodlyColors.celeste,
                   onChanged: (value) {
@@ -174,8 +185,10 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
 
   String get _sortLabel {
     switch (_sort) {
-      case PlatoSearchSort.nombre:
-        return 'Orden: Nombre';
+      case PlatoSearchSort.nombreAsc:
+        return 'Orden: Nombre ↑';
+      case PlatoSearchSort.nombreDesc:
+        return 'Orden: Nombre ↓';
       case PlatoSearchSort.precioAsc:
         return 'Orden: Precio ↑';
       case PlatoSearchSort.precioDesc:
@@ -298,8 +311,8 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
                   final message = snapshot.error is ApiException
                       ? (snapshot.error as ApiException).userMessage
                       : snapshot.error is NetworkException
-                          ? (snapshot.error as NetworkException).userMessage
-                          : 'Ocurrió un error al buscar platos.';
+                      ? (snapshot.error as NetworkException).userMessage
+                      : 'Ocurrió un error al buscar platos.';
                   return SliverFillRemaining(
                     hasScrollBody: false,
                     child: ErrorState(
@@ -320,8 +333,10 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
                 final items = _categoriaId == null
                     ? allItems
                     : allItems
-                        .where((item) => item.plato.categoriaId == _categoriaId)
-                        .toList();
+                          .where(
+                            (item) => item.plato.categoriaId == _categoriaId,
+                          )
+                          .toList();
 
                 if (allItems.isEmpty) {
                   return SliverFillRemaining(
@@ -374,41 +389,41 @@ class _PlatosSearchScreenState extends State<PlatosSearchScreen> {
                         ),
                       )
                     else ...[
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        child: Text(
-                          '${items.length} ${items.length == 1 ? 'plato encontrado' : 'platos encontrados'}',
-                          style: GoogleFonts.nunito(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: FoodlyColors.grisIntermedio,
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Text(
+                            '${items.length} ${items.length == 1 ? 'plato encontrado' : 'platos encontrados'}',
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: FoodlyColors.grisIntermedio,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      sliver: SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 0.6,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                childAspectRatio: 0.6,
+                              ),
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
                             final item = items[index];
                             return PlatoBusquedaCard(
                               item: item,
                               onTap: () => _navigateToLocal(item.localId),
                             );
-                          },
-                          childCount: items.length,
+                          }, childCount: items.length),
                         ),
                       ),
-                    ),
                     ],
                   ],
                 );

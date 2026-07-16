@@ -66,12 +66,18 @@ class LocalListFilter {
     String? ordenarPor;
     String? direccion;
     switch (sort) {
-      case LocalSortOption.nombre:
+      case LocalSortOption.nombreAsc:
         ordenarPor = 'nombre';
         direccion = 'asc';
-      case LocalSortOption.calificacion:
+      case LocalSortOption.nombreDesc:
+        ordenarPor = 'nombre';
+        direccion = 'desc';
+      case LocalSortOption.calificacionDesc:
         ordenarPor = 'calificacion';
         direccion = 'desc';
+      case LocalSortOption.calificacionAsc:
+        ordenarPor = 'calificacion';
+        direccion = 'asc';
     }
 
     return LocalListFilter(
@@ -94,10 +100,10 @@ class LocalListFilter {
 
   @override
   int get hashCode => Object.hash(
-        nombre,
-        soloAbiertos,
-        calificacionMinima,
-        ordenarPor,
-        direccion,
-      );
+    nombre,
+    soloAbiertos,
+    calificacionMinima,
+    ordenarPor,
+    direccion,
+  );
 }
