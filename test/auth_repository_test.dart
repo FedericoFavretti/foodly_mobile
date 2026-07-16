@@ -260,7 +260,8 @@ void main() {
       Map<String, dynamic>? capturedBody;
 
       final client = MockClient((request) async {
-        expect(request.url.path, '/api/v1/clientes/google');
+        // Actualizado al nuevo endpoint móvil
+        expect(request.url.path, '/api/v1/clientes/google/mobile');
         expect(request.method, 'POST');
         capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
         return http.Response(
@@ -290,6 +291,8 @@ void main() {
       Map<String, dynamic>? capturedBody;
 
       final client = MockClient((request) async {
+        // Verificar que se llama al endpoint móvil correcto
+        expect(request.url.path, '/api/v1/clientes/google/mobile');
         capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
         return http.Response(
           jsonEncode({
@@ -326,6 +329,8 @@ void main() {
 
     test('loginWithGoogle error del backend propaga mensaje', () async {
       final client = MockClient((request) async {
+        // Verificar que se llama al endpoint móvil correcto
+        expect(request.url.path, '/api/v1/clientes/google/mobile');
         return http.Response(
           jsonEncode({
             'mensaje':
