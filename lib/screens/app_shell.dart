@@ -1,3 +1,6 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/network/api_client.dart';
@@ -29,6 +32,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   final _historialKey = GlobalKey<HistorialScreenState>();
   final _reclamosKey = GlobalKey<ReclamosScreenState>();
   late final NotificacionNotifier _notificacionNotifier;
+  bool _firebaseInitialized = false;
 
   @override
   void initState() {
@@ -41,9 +45,44 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     );
     _notificacionNotifier.startPolling();
 
-    PushNotificationService.instance.initialize(
-      navigatorKey: FoodlyApp.navigatorKey,
-    );
+    _initPush();
+  }
+
+  Future<void> _initPush() async {
+    try {
+      // Firebase se inicializa aquí (después del login) para no interferir
+      // con el flujo de Credential Manager que usa Google Sign-In antes del login.
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+      // Re-habilitar la colección de datos ahora que el usuario ya inició sesión.
+      await FirebaseMessaging.instance.setAutoInitEnabled(true);
+      
+      // Inicializar el servicio de notificaciones push
+      await PushNotificationService.instance.initialize(
+        navigatorKey: FoodlyApp.navigatorKey,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _firebaseInitialized = true;
+        });
+      }
+      if (kDebugMode) {
+        print('[Push] Firebase inicializado correctamente.');
+      }
+    } catch (e) {
+      // Si Firebase no está configurado, las notificaciones push no funcionan
+      // pero el resto de la app sigue operativa.
+      if (kDebugMode) {
+        print('[Push] Firebase no disponible: $e');
+      }
+      if (mounted) {
+        setState(() {
+          _firebaseInitialized = false;
+        });
+      }
+    }
   }
 
   @override

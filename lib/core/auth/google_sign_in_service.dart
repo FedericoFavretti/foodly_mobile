@@ -50,29 +50,41 @@ class PlatformGoogleSignInService implements GoogleSignInService {
     await _ensureInitialized();
 
     try {
-      debugPrint('[GoogleSignIn] Iniciando authenticate()...');
+      if (kDebugMode) {
+        print('[GoogleSignIn] Iniciando authenticate()...');
+      }
       final account = await _signIn.authenticate(scopeHint: _scopes);
-      debugPrint('[GoogleSignIn] authenticate() OK — email: ${account.email}');
+      if (kDebugMode) {
+        print('[GoogleSignIn] authenticate() OK — email: ${account.email}');
+      }
 
       // El ID token JWT viene directamente con authenticate() en v7.
       // No es necesario llamar a authorizeScopes() (que puede quedar bloqueado
       // en dispositivos físicos con Credential Manager).
       final idToken = account.authentication.idToken;
-      debugPrint('[GoogleSignIn] idToken presente: ${idToken != null && idToken.isNotEmpty}');
+      if (kDebugMode) {
+        print('[GoogleSignIn] idToken presente: ${idToken != null && idToken.isNotEmpty}');
+      }
 
       if (idToken == null || idToken.isEmpty) {
-        debugPrint('[GoogleSignIn] idToken vacío, abortando.');
+        if (kDebugMode) {
+          print('[GoogleSignIn] idToken vacío, abortando.');
+        }
         return null;
       }
       return GoogleSignInTokens(accessToken: idToken);
     } on GoogleSignInException catch (error) {
-      debugPrint('[GoogleSignIn] GoogleSignInException: ${error.code}');
+      if (kDebugMode) {
+        print('[GoogleSignIn] GoogleSignInException: ${error.code}');
+      }
       if (error.code == GoogleSignInExceptionCode.canceled) {
         return null;
       }
       rethrow;
     } catch (e) {
-      debugPrint('[GoogleSignIn] Error inesperado: $e');
+      if (kDebugMode) {
+        print('[GoogleSignIn] Error inesperado: $e');
+      }
       rethrow;
     }
   }

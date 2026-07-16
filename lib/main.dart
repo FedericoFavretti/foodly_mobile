@@ -1,11 +1,8 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'core/navigation/foodly_deep_link_listener.dart';
 import 'core/navigation/foodly_page_route.dart';
-import 'core/notifications/push_notification_service.dart';
 import 'theme/foodly_colors.dart';
 import 'theme/foodly_theme.dart';
 import 'domain/cart/cart_notifier.dart';
@@ -35,8 +32,6 @@ import 'data/models/cliente_profile_model.dart';
 
 Future<void> bootstrapFoodlyApp() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await CartNotifier.instance.restore();
 }
 
