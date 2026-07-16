@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../core/errors/api_exception.dart';
 import '../core/providers/notificacion_notifier.dart';
 import '../data/models/notificacion_model.dart';
 import '../theme/foodly_colors.dart';
@@ -93,14 +95,45 @@ class NotificacionesScreen extends StatelessWidget {
   }
 
   Future<void> _navigateToPedido(BuildContext context, int pedidoId) async {
+    // Mostrar indicador de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: FoodlyColors.celeste),
+      ),
+    );
+
     try {
       final repo = PedidoRepository();
       final pedido = await repo.obtenerPedido(pedidoId);
+      
       if (!context.mounted) return;
+      // Cerrar indicador de carga
+      Navigator.pop(context);
+      
+      // Navegar al pedido
       Navigator.pushNamed(context, OrderStatusScreen.routeName,
           arguments: pedido);
-    } catch (_) {
+    } on ApiException catch (e) {
       if (!context.mounted) return;
+      // Cerrar indicador de carga
+      Navigator.pop(context);
+      
+      if (kDebugMode) {
+        print('[Notificaciones] Error al obtener pedido $pedidoId: ${e.userMessage} (${e.statusCode})');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.userMessage)),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      // Cerrar indicador de carga
+      Navigator.pop(context);
+      
+      if (kDebugMode) {
+        print('[Notificaciones] Error inesperado al obtener pedido $pedidoId: $e');
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo abrir el pedido.')),
       );
