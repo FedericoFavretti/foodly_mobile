@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foodly_mobile/core/auth/biometric_service.dart';
 import 'package:foodly_mobile/core/network/api_client.dart';
 import 'package:foodly_mobile/data/models/cliente_profile_model.dart';
 import 'package:foodly_mobile/data/repositories/cliente_profile_repository.dart';
@@ -11,6 +12,21 @@ import 'package:foodly_mobile/theme/foodly_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+
+/// Stub que cuenta cuántas veces se llamó a authenticate() (para verificar
+/// que activar Y desactivar el toggle biométrico piden confirmación).
+class _CountingBiometricService implements BiometricService {
+  int authenticateCalls = 0;
+
+  @override
+  Future<bool> isAvailable() async => true;
+
+  @override
+  Future<BiometricResult> authenticate() async {
+    authenticateCalls++;
+    return BiometricResult.success;
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +51,10 @@ void main() {
     fail('No apareció ${finder.description}');
   }
 
-  Future<void> pumpProfile(WidgetTester tester) async {
+  Future<void> pumpProfile(
+    WidgetTester tester, {
+    BiometricService? biometricService,
+  }) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -55,7 +74,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: FoodlyTheme.light,
-        home: ProfileScreen(profileRepository: repository),
+        home: ProfileScreen(
+          profileRepository: repository,
+          biometricService: biometricService,
+        ),
       ),
     );
 
@@ -74,33 +96,28 @@ void main() {
   });
 
   testWidgets(
-      'Editar perfil: "Número" y "Código postal" solo aceptan dígitos',
-      (tester) async {
-    await pumpProfile(tester);
+    'Editar perfil: "Número" y "Código postal" solo aceptan dígitos',
+    (tester) async {
+      await pumpProfile(tester);
 
-    await tester.tap(find.text('Editar'));
-    for (var i = 0; i < 8; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+      await tester.tap(find.text('Editar'));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
 
-    final numeroField = find.widgetWithText(TextFormField, 'Número');
-    expect(numeroField, findsOneWidget);
-    await tester.enterText(numeroField, '12a b3');
-    await tester.pump();
-    expect(
-      tester.widget<TextFormField>(numeroField).controller?.text,
-      '123',
-    );
+      final numeroField = find.widgetWithText(TextFormField, 'Número');
+      expect(numeroField, findsOneWidget);
+      await tester.enterText(numeroField, '12a b3');
+      await tester.pump();
+      expect(tester.widget<TextFormField>(numeroField).controller?.text, '123');
 
-    final cpField = find.widgetWithText(TextFormField, 'Código postal');
-    expect(cpField, findsOneWidget);
-    await tester.enterText(cpField, '11a 000');
-    await tester.pump();
-    expect(
-      tester.widget<TextFormField>(cpField).controller?.text,
-      '11000',
-    );
-  });
+      final cpField = find.widgetWithText(TextFormField, 'Código postal');
+      expect(cpField, findsOneWidget);
+      await tester.enterText(cpField, '11a 000');
+      await tester.pump();
+      expect(tester.widget<TextFormField>(cpField).controller?.text, '11000');
+    },
+  );
 
   testWidgets('Cambiar contraseña abre el wizard', (tester) async {
     await pumpProfile(tester);
@@ -114,9 +131,36 @@ void main() {
     }
 
     expect(find.text('SOLICITAR CÓDIGO'), findsOneWidget);
-    expect(
-      find.textContaining('iniciaste sesión con Google'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('iniciaste sesión con Google'), findsOneWidget);
   });
+
+  testWidgets(
+    'Desactivar el acceso biométrico también pide confirmación biométrica',
+    (tester) async {
+      await SessionManager.setBiometricEnabled(true);
+      await SessionManager.saveBiometricCredential(
+        email: 'cliente@test.com',
+        password: 'F@odly2026',
+      );
+      final biometricService = _CountingBiometricService();
+
+      await pumpProfile(tester, biometricService: biometricService);
+
+      final toggle = find.byType(Switch);
+      expect(toggle, findsOneWidget);
+      expect(tester.widget<Switch>(toggle).value, isTrue);
+
+      await tester.tap(toggle);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(biometricService.authenticateCalls, 1);
+      expect(tester.widget<Switch>(toggle).value, isFalse);
+      expect(await SessionManager.getBiometricEnabled(), isFalse);
+      // Sin el toggle activo no tiene sentido seguir guardando la
+      // credencial que usaba el login biométrico.
+      expect(await SessionManager.getBiometricCredential(), isNull);
+    },
+  );
 }

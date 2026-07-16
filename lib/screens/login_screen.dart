@@ -16,6 +16,7 @@ import '../widgets/google_icon.dart';
 import '../widgets/password_field.dart';
 import '../widgets/wavy_accent.dart';
 import 'activate_account_screen.dart';
+import 'biometric_lock_screen.dart';
 import 'forgot_password_screen.dart';
 import 'main_screen.dart';
 
@@ -24,12 +25,16 @@ class LoginScreen extends StatefulWidget {
     super.key,
     this.successMessage,
     this.googleSignInService,
+    this.authRepository,
+    this.biometricService,
   });
 
   static const routeName = '/login';
 
   final String? successMessage;
   final GoogleSignInService? googleSignInService;
+  final AuthRepository? authRepository;
+  final BiometricService? biometricService;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -39,8 +44,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authRepository = AuthRepository();
-  final _biometricService = LocalAuthBiometricService();
+  late final AuthRepository _authRepository =
+      widget.authRepository ?? AuthRepository();
+  late final BiometricService _biometricService =
+      widget.biometricService ?? LocalAuthBiometricService();
   late final GoogleSignInService _googleSignInService =
       widget.googleSignInService ?? PlatformGoogleSignInService();
   bool _isLoading = false;
@@ -60,6 +67,28 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  /// Muestra el acceso rápido por huella si el usuario lo activó y hay algo
+  /// con lo que la huella pueda entrar: una sesión activa para desbloquear,
+  /// o una credencial guardada con la que reautenticar de verdad (este
+  /// backend no tiene refresh token).
+  Future<void> _checkBiometricAvailability() async {
+    final enabled = await SessionManager.getBiometricEnabled();
+    if (enabled != true) return;
+
+    final hasSession = await SessionManager.hasSession();
+    final hasCredential =
+        hasSession || await SessionManager.getBiometricCredential() != null;
+    if (!hasCredential) return;
+
+    final available = await _biometricService.isAvailable();
+    if (!mounted) return;
+    setState(() => _showBiometricButton = available);
+  }
+
+  void _openBiometricLock() {
+    Navigator.pushReplacementNamed(context, BiometricLockScreen.routeName);
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -67,60 +96,27 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _checkBiometricAvailability() async {
-    final enabled = await SessionManager.getBiometricEnabled();
-    if (enabled != true) return;
-    final available = await _biometricService.isAvailable();
-    if (!mounted) return;
-    setState(() => _showBiometricButton = available);
-  }
-
-  Future<void> _loginWithBiometrics() async {
-    setState(() => _isLoading = true);
-    try {
-      final result = await _biometricService.authenticate();
-
-      if (!mounted) return;
-
-      if (result == BiometricResult.success) {
-        final hasSession = await SessionManager.hasSession();
-        if (!mounted) return;
-        if (hasSession) {
-          Navigator.pushReplacementNamed(context, MainScreen.routeName);
-        } else {
-          _showMessage(
-            'Tu sesión expiró. Iniciá sesión con tu correo y contraseña.',
-          );
-        }
-        return;
-      }
-
-      if (result == BiometricResult.lockedOut) {
-        _showMessage(
-          'Demasiados intentos fallidos. Usá tu correo y contraseña.',
-        );
-        return;
-      }
-
-      if (result == BiometricResult.failed) {
-        _showMessage('No se pudo verificar tu identidad. Intentá de nuevo.');
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
     try {
-      await _authRepository.login(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
+      final email = _emailController.text;
+      final password = _passwordController.text;
+      await _authRepository.login(email: email, password: password);
       if (!mounted) return;
       await offerBiometricIfNeeded(context, _biometricService);
+      if (!mounted) return;
+      // Este backend no tiene refresh token: para que la huella pueda
+      // iniciar sesión de verdad (no solo desbloquear un JWT que ya
+      // existe), guardamos la contraseña cifrada junto al JWT cada vez
+      // que hay un login exitoso con biometría activa.
+      if (await SessionManager.getBiometricEnabled() == true) {
+        await SessionManager.saveBiometricCredential(
+          email: email.trim(),
+          password: password,
+        );
+      }
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, MainScreen.routeName);
     } on ApiException catch (error) {
@@ -145,9 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final tokens = await _googleSignInService.signIn();
       if (tokens == null) return;
 
-      await _authRepository.loginWithGoogle(
-        accessToken: tokens.accessToken,
-      );
+      await _authRepository.loginWithGoogle(accessToken: tokens.accessToken);
       if (!mounted) return;
       await offerBiometricIfNeeded(context, _biometricService);
       if (!mounted) return;
@@ -165,9 +159,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showLoginError(ApiException error) {
@@ -194,11 +188,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthLayout(
-      onLogoTap: () => Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/',
-        (_) => false,
-      ),
+      onLogoTap: () =>
+          Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false),
       child: Form(
         key: _formKey,
         child: Column(
@@ -220,7 +211,9 @@ class _LoginScreenState extends State<LoginScreen> {
               label: 'CONTINUAR CON GOOGLE',
               variant: FoodlyButtonVariant.outline,
               leading: const GoogleIcon(),
-              onPressed: _isLoading || !_googleConfigured ? null : _loginWithGoogle,
+              onPressed: _isLoading || !_googleConfigured
+                  ? null
+                  : _loginWithGoogle,
             ),
             if (!_googleConfigured) ...[
               const SizedBox(height: 8),
@@ -250,16 +243,11 @@ class _LoginScreenState extends State<LoginScreen> {
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
               enabled: !_isLoading,
-              decoration: const InputDecoration(
-                hintText: 'Correo electrónico',
-              ),
+              decoration: const InputDecoration(hintText: 'Correo electrónico'),
               validator: FormValidators.email,
             ),
             const SizedBox(height: 16),
-            PasswordField(
-              label: 'Contraseña',
-              controller: _passwordController,
-            ),
+            PasswordField(label: 'Contraseña', controller: _passwordController),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
@@ -267,9 +255,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: _isLoading
                     ? null
                     : () => Navigator.pushNamed(
-                          context,
-                          ForgotPasswordScreen.routeName,
-                        ),
+                        context,
+                        ForgotPasswordScreen.routeName,
+                      ),
                 child: Text(
                   '¿Olvidaste tu contraseña?',
                   style: FoodlyTheme.sansBold.copyWith(
@@ -283,13 +271,10 @@ class _LoginScreenState extends State<LoginScreen> {
             if (_isLoading)
               const Center(child: CircularProgressIndicator())
             else
-              FoodlyButton(
-                label: 'INGRESAR',
-                onPressed: _submit,
-              ),
+              FoodlyButton(label: 'INGRESAR', onPressed: _submit),
             if (_showBiometricButton && !_isLoading) ...[
               const SizedBox(height: 12),
-              _BiometricButton(onTap: _loginWithBiometrics),
+              _BiometricButton(onTap: _openBiometricLock),
             ],
             const SizedBox(height: 32),
             const WavyAccent(),

@@ -24,9 +24,14 @@ import 'edit_profile_screen.dart';
 import 'home_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, this.profileRepository});
+  const ProfileScreen({
+    super.key,
+    this.profileRepository,
+    this.biometricService,
+  });
 
   final ClienteProfileRepository? profileRepository;
+  final BiometricService? biometricService;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -36,7 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late final ClienteProfileRepository _profileRepository;
   final _authRepository = AuthRepository();
   final _clienteRepository = ClienteRepository();
-  final _biometricService = LocalAuthBiometricService();
+  late final BiometricService _biometricService;
   late Future<ClienteProfileModel> _profileFuture;
   bool _isRefreshing = false;
   int _reputacionRefreshKey = 0;
@@ -48,6 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _profileRepository = widget.profileRepository ?? ClienteProfileRepository();
+    _biometricService = widget.biometricService ?? LocalAuthBiometricService();
     _profileFuture = _profileRepository.getOrFetch();
     _loadBiometricPreference();
   }
@@ -66,15 +72,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_biometricLoading) return;
     setState(() => _biometricLoading = true);
     try {
-      if (value) {
-        final result = await _biometricService.authenticate();
-        if (result != BiometricResult.success) {
-          if (mounted) _showBiometricError(result);
-          return;
-        }
-        await SessionManager.setBiometricEnabled(true);
-      } else {
-        await SessionManager.setBiometricEnabled(false);
+      // Se pide confirmación biométrica tanto para activar como para
+      // desactivar: si alguien más toma el teléfono desbloqueado, no puede
+      // apagar la protección sin volver a confirmar que es el dueño.
+      final result = await _biometricService.authenticate();
+      if (result != BiometricResult.success) {
+        if (mounted) _showBiometricError(result);
+        return;
+      }
+      await SessionManager.setBiometricEnabled(value);
+      if (!value) {
+        // Sin el toggle activo no tiene sentido seguir guardando la
+        // contraseña que la huella usaba para reautenticar.
+        await SessionManager.clearBiometricCredential();
       }
       if (mounted) setState(() => _biometricEnabled = value);
     } finally {
@@ -83,11 +93,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showBiometricError(BiometricResult result) {
+    if (result == BiometricResult.notEnrolled) {
+      _showNotEnrolledDialog();
+      return;
+    }
     final message = switch (result) {
       BiometricResult.lockedOut =>
         'Demasiados intentos fallidos. Probá más tarde.',
-      BiometricResult.notEnrolled =>
-        'No hay biometría registrada en este dispositivo.',
       BiometricResult.unavailable =>
         'La biometría no está disponible en este dispositivo.',
       _ => 'No se pudo verificar tu identidad.',
@@ -95,6 +107,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showNotEnrolledDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sin biometría configurada'),
+        content: const Text(
+          'No tenés biometría configurada en tu dispositivo. Configurala '
+          'en Ajustes y volvé a intentarlo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _openChangeEmail(String currentEmail) async {
@@ -222,6 +253,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _clienteRepository.eliminarCuenta();
       if (!mounted) return;
       await _authRepository.logout();
+      // A diferencia de un logout normal, acá la cuenta ya no existe: no
+      // tiene sentido dejar la contraseña guardada para reintentar entrar
+      // con huella.
+      await SessionManager.clearBiometricCredential();
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
         context,

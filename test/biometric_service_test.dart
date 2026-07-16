@@ -61,6 +61,41 @@ void main() {
     );
   });
 
+  group('LocalAuthBiometricService.mapAuthError', () {
+    test("'NotEnrolled' -> notEnrolled", () {
+      expect(
+        LocalAuthBiometricService.mapAuthError('NotEnrolled'),
+        BiometricResult.notEnrolled,
+      );
+    });
+
+    test("'NotAvailable' -> unavailable (no notEnrolled — regresión del bug "
+        'que los confundía)', () {
+      expect(
+        LocalAuthBiometricService.mapAuthError('NotAvailable'),
+        BiometricResult.unavailable,
+      );
+    });
+
+    test("'LockedOut' y 'PermanentlyLockedOut' -> lockedOut", () {
+      expect(
+        LocalAuthBiometricService.mapAuthError('LockedOut'),
+        BiometricResult.lockedOut,
+      );
+      expect(
+        LocalAuthBiometricService.mapAuthError('PermanentlyLockedOut'),
+        BiometricResult.lockedOut,
+      );
+    });
+
+    test('código desconocido -> unavailable', () {
+      expect(
+        LocalAuthBiometricService.mapAuthError('AlgoRaro'),
+        BiometricResult.unavailable,
+      );
+    });
+  });
+
   group('SessionManager — biometric preference', () {
     test(
       'getBiometricEnabled devuelve null cuando nunca se configuró',
@@ -107,6 +142,69 @@ void main() {
       expect(await SessionManager.getToken(), isNull);
       expect(await SessionManager.getBiometricEnabled(), isTrue);
     });
+  });
+
+  group('SessionManager — credencial para login biométrico', () {
+    test('getBiometricCredential devuelve null si nunca se guardó', () async {
+      expect(await SessionManager.getBiometricCredential(), isNull);
+    });
+
+    test(
+      'saveBiometricCredential → getBiometricCredential round-trip',
+      () async {
+        await SessionManager.saveBiometricCredential(
+          email: 'cliente@test.com',
+          password: 'F@odly2026',
+        );
+
+        final credential = await SessionManager.getBiometricCredential();
+        expect(credential, isNotNull);
+        expect(credential!.email, 'cliente@test.com');
+        expect(credential.password, 'F@odly2026');
+      },
+    );
+
+    test('clearBiometricCredential la borra', () async {
+      await SessionManager.saveBiometricCredential(
+        email: 'cliente@test.com',
+        password: 'F@odly2026',
+      );
+      await SessionManager.clearBiometricCredential();
+
+      expect(await SessionManager.getBiometricCredential(), isNull);
+    });
+
+    test('clearSession (expiración de token) NO borra la credencial: solo '
+        'logout explícito debe hacerlo', () async {
+      await SessionManager.saveToken('fake.token.here');
+      await SessionManager.saveBiometricCredential(
+        email: 'cliente@test.com',
+        password: 'F@odly2026',
+      );
+
+      await SessionManager.clearSession();
+
+      expect(await SessionManager.getToken(), isNull);
+      expect(await SessionManager.getBiometricCredential(), isNotNull);
+    });
+
+    test(
+      'saveBiometricCredential sobrescribe una credencial anterior',
+      () async {
+        await SessionManager.saveBiometricCredential(
+          email: 'viejo@test.com',
+          password: 'vieja',
+        );
+        await SessionManager.saveBiometricCredential(
+          email: 'nuevo@test.com',
+          password: 'nueva',
+        );
+
+        final credential = await SessionManager.getBiometricCredential();
+        expect(credential!.email, 'nuevo@test.com');
+        expect(credential.password, 'nueva');
+      },
+    );
   });
 
   group('BiometricResult enum', () {

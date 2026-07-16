@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'core/auth/biometric_service.dart';
 import 'core/navigation/foodly_deep_link_listener.dart';
 import 'core/navigation/foodly_page_route.dart';
 import 'theme/foodly_colors.dart';
 import 'theme/foodly_theme.dart';
 import 'domain/cart/cart_notifier.dart';
 import 'domain/session/session_manager.dart';
+import 'screens/biometric_lock_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'data/models/pedido_response_model.dart';
@@ -35,7 +37,9 @@ Future<void> bootstrapFoodlyApp() async {
 }
 
 void main() {
-  bootstrapFoodlyApp().then((_) => runApp(const FoodlyApp())).catchError((Object error) {
+  bootstrapFoodlyApp().then((_) => runApp(const FoodlyApp())).catchError((
+    Object error,
+  ) {
     // Si el bootstrap falla, ejecutar igualmente para mostrar la app
     // en lugar de un crash silencioso.
     runApp(const FoodlyApp());
@@ -55,8 +59,9 @@ class FoodlyApp extends StatelessWidget {
         navigatorKey: _navigatorKey,
         title: 'Foodly',
         debugShowCheckedModeBanner: false,
-        scrollBehavior:
-            const MaterialScrollBehavior().copyWith(overscroll: false),
+        scrollBehavior: const MaterialScrollBehavior().copyWith(
+          overscroll: false,
+        ),
         theme: FoodlyTheme.light.copyWith(
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
@@ -101,8 +106,7 @@ class FoodlyApp extends StatelessWidget {
   static Route<dynamic>? _generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case HomeScreen.routeName:
-        return FoodlyPageRoute(
-            page: const _AppStartup(), settings: settings);
+        return FoodlyPageRoute(page: const _AppStartup(), settings: settings);
       case LoginScreen.routeName:
         return FoodlyPageRoute(
           page: LoginScreen(
@@ -147,9 +151,7 @@ class FoodlyApp extends StatelessWidget {
       case ResetPasswordScreen.routeName:
         final token = settings.arguments;
         return FoodlyPageRoute(
-          page: ResetPasswordScreen(
-            token: token is String ? token : '',
-          ),
+          page: ResetPasswordScreen(token: token is String ? token : ''),
           settings: settings,
         );
       case ActivateAccountScreen.routeName:
@@ -177,6 +179,11 @@ class FoodlyApp extends StatelessWidget {
       case ChangePasswordScreen.routeName:
         return FoodlyPageRoute(
           page: const AuthGate(child: ChangePasswordScreen()),
+          settings: settings,
+        );
+      case BiometricLockScreen.routeName:
+        return FoodlyPageRoute(
+          page: const BiometricLockScreen(),
           settings: settings,
         );
       case MainScreen.routeName:
@@ -258,12 +265,32 @@ class _AppStartupState extends State<_AppStartup> {
 
   Future<void> _checkSession() async {
     final hasSession = await SessionManager.hasSession();
+    final biometricEnabled = await SessionManager.getBiometricEnabled();
+    // Sin sesión activa (expiró, o pasó bastante desde el último login) la
+    // huella igual puede servir para entrar si hay una credencial guardada:
+    // BiometricLockScreen la usa para reautenticar de verdad contra el
+    // backend, ya que no hay refresh token.
+    final hasBiometricCredential =
+        !hasSession && await SessionManager.getBiometricCredential() != null;
     if (!mounted) return;
-    if (hasSession) {
-      Navigator.pushReplacementNamed(context, MainScreen.routeName);
-    } else {
-      setState(() => _ready = true);
+
+    final showBiometricLock =
+        biometricEnabled == true &&
+        (hasSession || hasBiometricCredential) &&
+        await LocalAuthBiometricService().isAvailable();
+    if (!mounted) return;
+
+    if (showBiometricLock) {
+      Navigator.pushReplacementNamed(context, BiometricLockScreen.routeName);
+      return;
     }
+
+    if (!hasSession) {
+      setState(() => _ready = true);
+      return;
+    }
+
+    Navigator.pushReplacementNamed(context, MainScreen.routeName);
   }
 
   @override

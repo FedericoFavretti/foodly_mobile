@@ -48,8 +48,7 @@ class AuthRepository {
   static const wrongCredentialsMessage =
       'El correo electrónico o la contraseña son incorrectos. Por favor, inténtelo nuevamente.';
 
-  static const accountNotActivatedMessage =
-      'Usuario no activado o bloqueado.';
+  static const accountNotActivatedMessage = 'Usuario no activado o bloqueado.';
 
   static const notClienteMessage =
       'Esta aplicación es exclusiva para clientes.';
@@ -62,14 +61,10 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      final response = await _api.post(
-        ApiConstants.loginEndpoint,
-        {
-          'email': email.trim(),
-          'passwd': password,
-        },
-        requiresAuth: false,
-      );
+      final response = await _api.post(ApiConstants.loginEndpoint, {
+        'email': email.trim(),
+        'passwd': password,
+      }, requiresAuth: false);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -79,7 +74,10 @@ class AuthRepository {
       if (response.statusCode == 401 || response.statusCode == 404) {
         throw ApiException(
           statusCode: response.statusCode,
-          userMessage: _mapLoginErrorMessage(response.body, response.statusCode),
+          userMessage: _mapLoginErrorMessage(
+            response.body,
+            response.statusCode,
+          ),
         );
       }
 
@@ -139,8 +137,7 @@ class AuthRepository {
 
       throw ApiException(
         statusCode: response.statusCode,
-        userMessage:
-            _mapErrorMessage(response.body) ?? googleAuthFailedMessage,
+        userMessage: _mapErrorMessage(response.body) ?? googleAuthFailedMessage,
         debugInfo: response.body,
       );
     } on ApiException {
@@ -163,16 +160,13 @@ class AuthRepository {
     required String idToken,
   }) async {
     try {
-      final response = await _api.post(
-        ApiConstants.googleMobileIniciarRegistroEndpoint,
-        {
-          'idToken': idToken.trim(),
-          'direccion': null,
-          'documento': null,
-          'esRegistro': true,
-        },
-        requiresAuth: false,
-      );
+      final response = await _api
+          .post(ApiConstants.googleMobileIniciarRegistroEndpoint, {
+            'idToken': idToken.trim(),
+            'direccion': null,
+            'documento': null,
+            'esRegistro': true,
+          }, requiresAuth: false);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -181,8 +175,7 @@ class AuthRepository {
 
       throw ApiException(
         statusCode: response.statusCode,
-        userMessage:
-            _mapErrorMessage(response.body) ?? googleAuthFailedMessage,
+        userMessage: _mapErrorMessage(response.body) ?? googleAuthFailedMessage,
         debugInfo: response.body,
       );
     } on ApiException {
@@ -250,8 +243,7 @@ class AuthRepository {
 
       throw ApiException(
         statusCode: response.statusCode,
-        userMessage:
-            _mapErrorMessage(response.body) ?? googleAuthFailedMessage,
+        userMessage: _mapErrorMessage(response.body) ?? googleAuthFailedMessage,
         debugInfo: response.body,
       );
     } on ApiException {
@@ -274,18 +266,13 @@ class AuthRepository {
     final role = JwtDecoder.role(authResponse.token);
     if (!JwtDecoder.isClienteRole(role)) {
       await SessionManager.clearSession();
-      throw const ApiException(
-        statusCode: 403,
-        userMessage: notClienteMessage,
-      );
+      throw const ApiException(statusCode: 403, userMessage: notClienteMessage);
     }
     await SessionManager.saveToken(authResponse.token);
 
     if (authResponse.usuario != null) {
       final usuario = authResponse.usuario!;
-      await SessionManager.saveUsuarioInfoJson(
-        jsonEncode(usuario.toJson()),
-      );
+      await SessionManager.saveUsuarioInfoJson(jsonEncode(usuario.toJson()));
     }
 
     final profileFromLogin = ClienteProfileModel.tryFromLoginJson(data);
@@ -302,15 +289,15 @@ class AuthRepository {
   /// Intenta notificar al backend, pero siempre limpia la sesión local.
   Future<void> logout() async {
     try {
-      await _api.post(
-        ApiConstants.logoutEndpoint,
-        {},
-        requiresAuth: true,
-      );
+      await _api.post(ApiConstants.logoutEndpoint, {}, requiresAuth: true);
     } catch (_) {
       // Ignorar errores del backend - la limpieza local es lo crítico
     } finally {
       await SessionManager.clearSession();
+      // La credencial guardada para el login biométrico NO se borra acá:
+      // "cerrar sesión" solo termina el JWT activo, pero la huella debe
+      // poder volver a meterte sin escribir la contraseña de nuevo. Solo se
+      // borra al desactivar el toggle o al eliminar la cuenta.
       CartNotifier.instance.clear();
     }
   }
