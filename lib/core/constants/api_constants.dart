@@ -72,6 +72,7 @@ abstract final class ApiConstants {
 
   // ── Notificaciones ────────────────────────────────────────────────────────
   static const notificacionesMiasEndpoint = '/api/v1/notificaciones/mias';
+  static const notificacionTokenEndpoint = '/api/v1/notificaciones/token';
 
   static String notificacionLeidaEndpoint(int id) =>
       '/api/v1/notificaciones/$id/leida';

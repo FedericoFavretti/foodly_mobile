@@ -62,6 +62,22 @@ class ApiClient {
     }, requiresAuth: requiresAuth);
   }
 
+  Future<http.Response> put(
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool requiresAuth = true,
+  }) async {
+    return _execute(() async {
+      final headers = await _buildHeaders(requiresAuth: requiresAuth);
+      final uri = Uri.parse('$_baseUrl$endpoint');
+      return _client.put(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+    }, requiresAuth: requiresAuth);
+  }
+
   Future<http.Response> delete(
     String endpoint, {
     bool requiresAuth = true,
