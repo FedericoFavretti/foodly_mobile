@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 
 import '../constants/foodly_deep_link_constants.dart';
 import '../../data/repositories/account_repository.dart';
+import '../../data/repositories/pedido_repository.dart';
 import '../../domain/cart/cart_storage.dart';
 import '../../screens/confirm_email_change_screen.dart';
 import '../../screens/login_screen.dart';
 import '../../screens/main_screen.dart';
+import '../../screens/order_status_screen.dart';
 import '../../screens/reset_password_screen.dart';
 
 /// Escucha deep links:
@@ -73,16 +75,12 @@ class _FoodlyDeepLinkListenerState extends State<FoodlyDeepLinkListener> {
   }
 
   Future<void> _handleMercadoPago(FoodlyDeepLinkAction action) async {
+    // Preferimos el pedidoId del deep link; si no viene, usamos el guardado en storage.
+    final pedidoId = action.pedidoId ?? await _storage.loadPendingMpPedidoId();
     await _storage.clearPendingMpPedidoId();
 
     final navigator = widget.navigatorKey.currentState;
     if (navigator == null) return;
-
-    navigator.pushNamedAndRemoveUntil(
-      MainScreen.routeName,
-      (route) => route.isFirst,
-      arguments: 1,
-    );
 
     final context = widget.navigatorKey.currentContext;
     if (context == null || !context.mounted) return;
@@ -96,6 +94,34 @@ class _FoodlyDeepLinkListenerState extends State<FoodlyDeepLinkListener> {
         'Tu pago está pendiente de confirmación.',
     };
 
+    // En caso de éxito con pedidoId disponible, navegar directo al estado del pedido.
+    if (action.status == MercadoPagoReturnStatus.success && pedidoId != null) {
+      try {
+        final pedido = await PedidoRepository().obtenerPedido(pedidoId);
+        if (!context.mounted) return;
+        navigator.pushNamedAndRemoveUntil(
+          OrderStatusScreen.routeName,
+          (route) => route.isFirst,
+          arguments: pedido,
+        );
+      } catch (_) {
+        // Fallback al tab de Pedidos si no se puede obtener el pedido.
+        if (!context.mounted) return;
+        navigator.pushNamedAndRemoveUntil(
+          MainScreen.routeName,
+          (route) => route.isFirst,
+          arguments: 1,
+        );
+      }
+    } else {
+      navigator.pushNamedAndRemoveUntil(
+        MainScreen.routeName,
+        (route) => route.isFirst,
+        arguments: 1,
+      );
+    }
+
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );

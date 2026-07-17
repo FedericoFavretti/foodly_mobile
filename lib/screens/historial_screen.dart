@@ -345,7 +345,7 @@ class HistorialScreenState extends State<HistorialScreen>
 
       final uri = Uri.tryParse(initPoint);
       if (uri != null) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
       }
     } on ApiException catch (error) {
       if (!mounted) return;

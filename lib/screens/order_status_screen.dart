@@ -59,7 +59,12 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       if (!mounted) return;
       setState(() => _pedido = actualizado);
     } catch (_) {
-      // Si falla el refresco, no mostramos error — el usuario puede ir a "Mis Pedidos"
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo verificar el estado. Intentalo de nuevo.'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _refrescando = false);
     }
@@ -169,6 +174,32 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                   onPressed: _refrescarPedido,
                   child: Text(
                     'Ya pagué — verificar estado',
+                    style: FoodlyTheme.sansBold.copyWith(
+                      color: FoodlyColors.celeste,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+              // MP requerido pero sin init point disponible (ej: pago enviado, esperando confirmación)
+              if (esMercadoPago &&
+                  !_pedido.puedeCompletarPagoMercadoPago &&
+                  !_pagado &&
+                  !_refrescando) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Tu pago está siendo procesado por Mercado Pago.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    color: FoodlyColors.grisIntermedio,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _refrescarPedido,
+                  child: Text(
+                    'Actualizar estado',
                     style: FoodlyTheme.sansBold.copyWith(
                       color: FoodlyColors.celeste,
                       fontSize: 14,

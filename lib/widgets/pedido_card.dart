@@ -79,7 +79,7 @@ class _PedidoCardState extends State<PedidoCard> {
   Future<void> _abrirMercadoPago() async {
     final uri = Uri.tryParse(pedido.mpInitPoint!.trim());
     if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
   }
 
   Future<void> _call(String e164) async {
