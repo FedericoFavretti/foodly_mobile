@@ -185,10 +185,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         foregroundColor: FoodlyColors.grisOscuro,
         elevation: 0,
       ),
+      resizeToAvoidBottomInset: false,
       body: _loadingProfile
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(
+                16, 16, 16,
+                16 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

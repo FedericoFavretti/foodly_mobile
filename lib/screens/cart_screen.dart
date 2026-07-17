@@ -122,45 +122,48 @@ class CartScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: FoodlyColors.blanco,
-                  boxShadow: [
-                    BoxShadow(
-                      color: FoodlyColors.negro.withValues(alpha: 0.06),
-                      blurRadius: 8,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Total estimado',
-                          style: GoogleFonts.nunito(
-                            fontSize: 15,
-                            color: FoodlyColors.grisIntermedio,
+              SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  decoration: BoxDecoration(
+                    color: FoodlyColors.blanco,
+                    boxShadow: [
+                      BoxShadow(
+                        color: FoodlyColors.negro.withValues(alpha: 0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total estimado',
+                            style: GoogleFonts.nunito(
+                              fontSize: 15,
+                              color: FoodlyColors.grisIntermedio,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '\$${cart.estimatedTotal.toStringAsFixed(0)}',
-                          style: FoodlyTheme.sansBlack.copyWith(fontSize: 20),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    FoodlyButton(
-                      label: 'CONTINUAR',
-                      onPressed: () {
-                        Navigator.pushNamed(context, CheckoutScreen.routeName);
-                      },
-                    ),
-                  ],
+                          Text(
+                            '\$${cart.estimatedTotal.toStringAsFixed(0)}',
+                            style: FoodlyTheme.sansBlack.copyWith(fontSize: 20),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      FoodlyButton(
+                        label: 'CONTINUAR',
+                        onPressed: () {
+                          Navigator.pushNamed(context, CheckoutScreen.routeName);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

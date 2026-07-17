@@ -15,11 +15,19 @@ class AuthLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // viewInsets.bottom contiene la altura del teclado cuando está abierto.
+    // Con resizeToAvoidBottomInset: false evitamos que el Scaffold cambie el
+    // tamaño del body y en cambio sumamos el espacio del teclado al padding
+    // inferior del scroll, lo que garantiza que el botón/campo enfocado no
+    // quede tapado.
+    final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const ClampingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+          padding: EdgeInsets.fromLTRB(20, 24, 20, 32 + keyboardHeight),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
