@@ -200,21 +200,16 @@ class AuthRepository {
     required String documento,
     required DireccionModel direccion,
     bool aceptaTerminos = true,
-    String? celular,
     List<int>? fotoBytes,
     String? fotoFilename,
   }) async {
     try {
-      final datos = <String, dynamic>{
+      final datosJson = jsonEncode({
         'tokenRegistro': tokenRegistro,
         'documento': documento.trim(),
         'direccion': direccion.toJson(),
         'aceptaTerminos': aceptaTerminos,
-      };
-      if (celular != null && celular.isNotEmpty) {
-        datos['celular'] = celular;
-      }
-      final datosJson = jsonEncode(datos);
+      });
 
       // `datos` debe ir como part con Content-Type: application/json
       final files = <String, http.MultipartFile>{

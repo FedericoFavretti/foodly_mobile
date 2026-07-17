@@ -13,7 +13,6 @@ import '../theme/foodly_colors.dart';
 import '../theme/foodly_theme.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/foodly_button.dart';
-import '../widgets/phone_field.dart';
 import 'main_screen.dart';
 
 class GoogleRegistrationCompletionScreen extends StatefulWidget {
@@ -45,7 +44,6 @@ class _GoogleRegistrationCompletionScreenState
 
   Uint8List? _fotoBytes;
   String? _fotoFilename;
-  String _celular = '';
   bool _isLoading = false;
 
   GoogleRegistroPendienteResponse get _pendiente => widget.pendiente;
@@ -90,7 +88,6 @@ class _GoogleRegistrationCompletionScreenState
               ? null
               : _codigoPostalController.text.trim(),
         ),
-        celular: _celular.isEmpty ? null : _celular,
         aceptaTerminos: true,
         fotoBytes: _fotoBytes != null ? List<int>.from(_fotoBytes!) : null,
         fotoFilename: _fotoFilename,
@@ -206,13 +203,6 @@ class _GoogleRegistrationCompletionScreenState
               decoration: const InputDecoration(
                 hintText: 'Código postal (opcional)',
               ),
-            ),
-            const SizedBox(height: 12),
-
-            // ── Celular ───────────────────────────────────────────────────
-            PhoneField(
-              enabled: !_isLoading,
-              onChanged: (value) => _celular = value,
             ),
             const SizedBox(height: 16),
 
