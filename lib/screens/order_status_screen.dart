@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../data/models/pedido_response_model.dart';
 import '../data/repositories/pedido_repository.dart';
@@ -21,10 +20,8 @@ class OrderStatusScreen extends StatefulWidget {
   State<OrderStatusScreen> createState() => _OrderStatusScreenState();
 }
 
-class _OrderStatusScreenState extends State<OrderStatusScreen>
-    with WidgetsBindingObserver {
+class _OrderStatusScreenState extends State<OrderStatusScreen> {
   late PedidoResponseModel _pedido;
-  bool _abrioMercadoPago = false;
   bool _refrescando = false;
   final _repo = PedidoRepository();
 
@@ -32,23 +29,6 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   void initState() {
     super.initState();
     _pedido = widget.pedido;
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Cuando el usuario vuelve a la app después de haber abierto MP,
-    // refrescamos el estado del pedido para ver si el pago fue aprobado.
-    if (state == AppLifecycleState.resumed && _abrioMercadoPago) {
-      _abrioMercadoPago = false;
-      _refrescarPedido();
-    }
   }
 
   Future<void> _refrescarPedido() async {
@@ -68,18 +48,6 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     } finally {
       if (mounted) setState(() => _refrescando = false);
     }
-  }
-
-  Future<void> _abrirMercadoPago() async {
-    final uri = Uri.tryParse(_pedido.mpInitPoint!.trim());
-    if (uri == null) return;
-    _abrioMercadoPago = true;
-    // inAppBrowserView (Custom Tabs / SFSafariViewController) mantiene el
-    // checkout dentro de la tarea de la app: "salir" cierra la pestaña y
-    // vuelve a Foodly. Con externalApplication se abría en el navegador
-    // como una pestaña más, así que "salir" navegaba por su historial
-    // (a veces cayendo en una pestaña vieja de login) en vez de volver acá.
-    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
   }
 
   bool get _pagado =>
@@ -165,11 +133,6 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
               ],
               if (_pedido.puedeCompletarPagoMercadoPago && !_refrescando) ...[
                 const SizedBox(height: 16),
-                FoodlyButton(
-                  label: 'ABRIR MERCADO PAGO',
-                  onPressed: _abrirMercadoPago,
-                ),
-                const SizedBox(height: 8),
                 TextButton(
                   onPressed: _refrescarPedido,
                   child: Text(
