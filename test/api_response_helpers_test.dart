@@ -21,8 +21,22 @@ void main() {
       );
     });
 
+    test('reconoce el mensaje real de "cuenta sin pedidos nunca" del backend '
+        '(distinto al de "filtro sin coincidencias")', () {
+      expect(
+        ApiResponseHelpers.isEmptyResultMessage(
+          'Aún no ha realizado ningún pedido. ¡Explore los locales '
+          'disponibles y realice su primer pedido!',
+        ),
+        isTrue,
+      );
+    });
+
     test('no confunde un error real con un "sin resultados"', () {
-      expect(ApiResponseHelpers.isEmptyResultMessage('Token inválido.'), isFalse);
+      expect(
+        ApiResponseHelpers.isEmptyResultMessage('Token inválido.'),
+        isFalse,
+      );
       expect(
         ApiResponseHelpers.isEmptyResultMessage(
           'El monto de reintegro no puede superar el total del pedido.',
