@@ -78,8 +78,7 @@ void main() {
       expect(pedidos, isEmpty);
     });
 
-    test(
-        '400 "no se encontraron pedidos" (0 resultados) retorna lista vacía, '
+    test('400 "no se encontraron pedidos" (0 resultados) retorna lista vacía, '
         'no lanza excepción', () async {
       final client = MockClient((request) async {
         return http.Response(
@@ -94,6 +93,26 @@ void main() {
 
       final repo = PedidoRepository(api: ApiClient(client: client));
       final pedidos = await repo.listarHistorial(estado: 'Pendiente');
+
+      expect(pedidos, isEmpty);
+    });
+
+    test('400 "aún no ha realizado ningún pedido" (cuenta nueva, sin filtro) '
+        'retorna lista vacía, no lanza excepción', () async {
+      final client = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'mensaje':
+                'Aún no ha realizado ningún pedido. ¡Explore los '
+                'locales disponibles y realice su primer pedido!',
+            'status': 400,
+          }),
+          400,
+        );
+      });
+
+      final repo = PedidoRepository(api: ApiClient(client: client));
+      final pedidos = await repo.listarHistorial();
 
       expect(pedidos, isEmpty);
     });

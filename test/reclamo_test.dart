@@ -20,16 +20,19 @@ void main() {
   });
 
   group('ReclamoRules', () {
-    test('permite reclamar pedidos confirmados y entregados sin reclamo previo', () {
-      expect(
-        ReclamoRules.puedeReclamar(estado: 'Confirmado', tieneReclamo: false),
-        isTrue,
-      );
-      expect(
-        ReclamoRules.puedeReclamar(estado: 'Entregado', tieneReclamo: false),
-        isTrue,
-      );
-    });
+    test(
+      'permite reclamar pedidos confirmados y entregados sin reclamo previo',
+      () {
+        expect(
+          ReclamoRules.puedeReclamar(estado: 'Confirmado', tieneReclamo: false),
+          isTrue,
+        );
+        expect(
+          ReclamoRules.puedeReclamar(estado: 'Entregado', tieneReclamo: false),
+          isTrue,
+        );
+      },
+    );
 
     test('no permite reclamar si ya hay reclamo o estado inválido', () {
       expect(
@@ -135,49 +138,79 @@ void main() {
       expect(reclamo, isNull);
     });
 
-    test('listarMisReclamos consulta historial y reclamos por pedido', () async {
+    test(
+      'listarMisReclamos consulta historial y reclamos por pedido',
+      () async {
+        final client = MockClient((request) async {
+          if (request.url.path == '/api/v1/pedidos/mi-historial') {
+            return http.Response(
+              jsonEncode([
+                {
+                  'id': 10,
+                  'total': 500,
+                  'estado': 'Entregado',
+                  'local': {'id': 1, 'nombre': 'Sushi Bar'},
+                  'detalles': [],
+                },
+                {
+                  'id': 11,
+                  'total': 300,
+                  'estado': 'Pendiente',
+                  'local': {'id': 2, 'nombre': 'Otro'},
+                  'detalles': [],
+                },
+              ]),
+              200,
+            );
+          }
+          if (request.url.path == '/api/v1/reclamos/mi-reclamo/10') {
+            return http.Response(
+              jsonEncode({
+                'id': 7,
+                'motivo': 'Faltó un plato',
+                'estado': 'Atendido',
+                'tipoCompensacion': 'reintegro',
+                'montoReintegro': 500,
+                'fecha': '2026-06-21T10:00:00',
+                'dtPedido': {
+                  'id': 10,
+                  'estado': 'Entregado',
+                  'total': 500,
+                  'dtLocal': {'id': 1, 'nombre': 'Sushi Bar'},
+                },
+              }),
+              200,
+            );
+          }
+          return http.Response('', 404);
+        });
+
+        final api = ApiClient(client: client);
+        final repository = ReclamoRepository(
+          api: api,
+          pedidoRepository: PedidoRepository(api: api),
+        );
+
+        final reclamos = await repository.listarMisReclamos();
+        expect(reclamos, hasLength(1));
+        expect(reclamos.first.id, 7);
+        expect(reclamos.first.esAtendido, isTrue);
+        expect(reclamos.first.localNombre, 'Sushi Bar');
+      },
+    );
+
+    test('cliente sin pedidos (historial 400 "no encontrados") muestra lista '
+        'vacía, no un error', () async {
       final client = MockClient((request) async {
-        if (request.url.path == '/api/v1/pedidos/mi-historial') {
-          return http.Response(
-            jsonEncode([
-              {
-                'id': 10,
-                'total': 500,
-                'estado': 'Entregado',
-                'local': {'id': 1, 'nombre': 'Sushi Bar'},
-                'detalles': [],
-              },
-              {
-                'id': 11,
-                'total': 300,
-                'estado': 'Pendiente',
-                'local': {'id': 2, 'nombre': 'Otro'},
-                'detalles': [],
-              },
-            ]),
-            200,
-          );
-        }
-        if (request.url.path == '/api/v1/reclamos/mi-reclamo/10') {
-          return http.Response(
-            jsonEncode({
-              'id': 7,
-              'motivo': 'Faltó un plato',
-              'estado': 'Atendido',
-              'tipoCompensacion': 'reintegro',
-              'montoReintegro': 500,
-              'fecha': '2026-06-21T10:00:00',
-              'dtPedido': {
-                'id': 10,
-                'estado': 'Entregado',
-                'total': 500,
-                'dtLocal': {'id': 1, 'nombre': 'Sushi Bar'},
-              },
-            }),
-            200,
-          );
-        }
-        return http.Response('', 404);
+        expect(request.url.path, '/api/v1/pedidos/mi-historial');
+        return http.Response(
+          jsonEncode({
+            'mensaje':
+                'No se encontraron pedidos que coincidan con los criterios seleccionados.',
+            'status': 400,
+          }),
+          400,
+        );
       });
 
       final api = ApiClient(client: client);
@@ -187,21 +220,18 @@ void main() {
       );
 
       final reclamos = await repository.listarMisReclamos();
-      expect(reclamos, hasLength(1));
-      expect(reclamos.first.id, 7);
-      expect(reclamos.first.esAtendido, isTrue);
-      expect(reclamos.first.localNombre, 'Sushi Bar');
+      expect(reclamos, isEmpty);
     });
 
-    test(
-        'cliente sin pedidos (historial 400 "no encontrados") muestra lista '
-        'vacía, no un error', () async {
+    test('cuenta nueva sin pedidos nunca (historial 400 "aún no ha '
+        'realizado") muestra lista vacía, no un error', () async {
       final client = MockClient((request) async {
         expect(request.url.path, '/api/v1/pedidos/mi-historial');
         return http.Response(
           jsonEncode({
             'mensaje':
-                'No se encontraron pedidos que coincidan con los criterios seleccionados.',
+                'Aún no ha realizado ningún pedido. ¡Explore los '
+                'locales disponibles y realice su primer pedido!',
             'status': 400,
           }),
           400,
