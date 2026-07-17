@@ -46,6 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late Future<ClienteProfileModel> _profileFuture;
   bool _isRefreshing = false;
   int _reputacionRefreshKey = 0;
+  bool _biometricChecked = false;
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
   bool _biometricLoading = false;
@@ -64,6 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final enabled = await SessionManager.getBiometricEnabled();
     if (!mounted) return;
     setState(() {
+      _biometricChecked = true;
       _biometricAvailable = available;
       _biometricEnabled = enabled == true;
     });
@@ -413,6 +415,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   loading: _biometricLoading,
                                   onChanged: _toggleBiometric,
                                 ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 4),
+                                  child: Divider(height: 1),
+                                ),
+                              ] else if (_biometricChecked) ...[
+                                const _BiometricUnavailableRow(),
                                 const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 4),
                                   child: Divider(height: 1),
@@ -962,6 +970,64 @@ class _BiometricToggleRow extends StatelessWidget {
               activeThumbColor: FoodlyColors.celeste,
               onChanged: onChanged,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Se muestra en vez del toggle cuando el dispositivo no expone ningún
+/// biométrico a la app (huella o cara): puede ser porque no configuraste
+/// nada en el sistema, o porque el fabricante del teléfono no deja que
+/// apps de terceros usen el reconocimiento facial propio del equipo.
+class _BiometricUnavailableRow extends StatelessWidget {
+  const _BiometricUnavailableRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: FoodlyColors.grisClaro,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.fingerprint,
+              size: 22,
+              color: FoodlyColors.grisIntermedio,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Inicio con biometría',
+                  style: GoogleFonts.nunito(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: FoodlyColors.grisIntermedio,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Tu dispositivo no tiene huella o Face ID configurados, '
+                  'o el fabricante no lo permite para apps.',
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    color: FoodlyColors.grisIntermedio,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

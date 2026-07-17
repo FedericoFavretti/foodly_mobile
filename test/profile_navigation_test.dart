@@ -28,6 +28,17 @@ class _CountingBiometricService implements BiometricService {
   }
 }
 
+/// Simula un dispositivo que no expone ningún biométrico a la app (sin
+/// nada configurado en el sistema, o un fabricante que no deja usar el
+/// reconocimiento facial propio desde apps de terceros).
+class _UnavailableBiometricService implements BiometricService {
+  @override
+  Future<bool> isAvailable() async => false;
+
+  @override
+  Future<BiometricResult> authenticate() async => BiometricResult.unavailable;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -161,6 +172,23 @@ void main() {
       // Sin el toggle activo no tiene sentido seguir guardando la
       // credencial que usaba el login biométrico.
       expect(await SessionManager.getBiometricCredential(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Sin biometría disponible en el dispositivo, muestra el aviso en vez '
+    'del toggle',
+    (tester) async {
+      await pumpProfile(
+        tester,
+        biometricService: _UnavailableBiometricService(),
+      );
+
+      expect(find.byType(Switch), findsNothing);
+      expect(
+        find.textContaining('no tiene huella o Face ID configurados'),
+        findsOneWidget,
+      );
     },
   );
 }
