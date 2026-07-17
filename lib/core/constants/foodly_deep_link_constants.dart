@@ -1,3 +1,56 @@
+/// Host del frontend web — Android intercepta estos links HTTPS y los
+/// abre en la app en lugar del navegador (Android App Links).
+/// Override: `--dart-define=WEB_LINK_HOST=...`
+abstract final class FoodlyWebLinkConstants {
+  static const host = String.fromEnvironment(
+    'WEB_LINK_HOST',
+    defaultValue: 'frontend-proyecto-foodly-test.up.railway.app',
+  );
+
+  static const pathConfirmarCambioCorreo = '/confirmar-cambio-correo';
+  static const pathRestablecerContrasena = '/restablecer-contrasena';
+  static const pathActivarCuenta = '/activar-cuenta';
+}
+
+sealed class FoodlyWebLinkAction {}
+
+final class WebLinkConfirmarCambioCorreo extends FoodlyWebLinkAction {
+  WebLinkConfirmarCambioCorreo(this.token);
+  final String token;
+}
+
+final class WebLinkRestablecerContrasena extends FoodlyWebLinkAction {
+  WebLinkRestablecerContrasena(this.token);
+  final String token;
+}
+
+final class WebLinkActivarCuenta extends FoodlyWebLinkAction {
+  WebLinkActivarCuenta(this.token);
+  final String token;
+}
+
+abstract final class FoodlyWebLinkParser {
+  static FoodlyWebLinkAction? parse(Uri uri) {
+    if (uri.scheme != 'https') return null;
+    if (uri.host != FoodlyWebLinkConstants.host) return null;
+
+    final token = uri.queryParameters['token'] ?? '';
+
+    switch (uri.path) {
+      case FoodlyWebLinkConstants.pathConfirmarCambioCorreo:
+        return WebLinkConfirmarCambioCorreo(token);
+      case FoodlyWebLinkConstants.pathRestablecerContrasena:
+        return WebLinkRestablecerContrasena(token);
+      case FoodlyWebLinkConstants.pathActivarCuenta:
+        return WebLinkActivarCuenta(token);
+      default:
+        return null;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// Esquema custom para retorno post-Mercado Pago (C3).
 ///
 /// Configurar en Railway/backend:

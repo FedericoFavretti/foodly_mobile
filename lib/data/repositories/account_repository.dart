@@ -264,6 +264,37 @@ class AccountRepository {
 
 
 
+  /// Activa la cuenta usando el token del link recibido por email.
+  /// Llamado desde el App Link `/activar-cuenta?token=...`.
+  Future<void> activarCuentaConToken(String token) async {
+    try {
+      final response = await _api.postEmpty(
+        ApiConstants.activarCuentaEndpoint,
+        queryParameters: {'token': token.trim()},
+        requiresAuth: false,
+      );
+
+      if (response.statusCode == 200) return;
+
+      throw ApiException(
+        statusCode: response.statusCode,
+        userMessage: _mapErrorMessage(response.body) ??
+            'No pudimos activar tu cuenta. Intentalo más tarde.',
+        debugInfo: response.body,
+      );
+    } on ApiException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (error) {
+      throw ApiException(
+        statusCode: 0,
+        userMessage: 'Ocurrió un error inesperado. Intentalo más tarde.',
+        debugInfo: error.toString(),
+      );
+    }
+  }
+
   Future<void> activarCuenta(String email) async {
 
     try {

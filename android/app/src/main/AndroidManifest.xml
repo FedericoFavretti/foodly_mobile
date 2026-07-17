@@ -37,6 +37,37 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="foodly" android:host="payment"/>
             </intent-filter>
+
+            <!-- Android App Links: interceptar links del frontend para abrirlos
+                 en la app sin pasar por el navegador. Requiere que el archivo
+                 assetlinks.json esté publicado en el frontend bajo /.well-known/ -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="frontend-proyecto-foodly-test.up.railway.app"
+                    android:path="/confirmar-cambio-correo"/>
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="frontend-proyecto-foodly-test.up.railway.app"
+                    android:path="/restablecer-contrasena"/>
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="frontend-proyecto-foodly-test.up.railway.app"
+                    android:path="/activar-cuenta"/>
+            </intent-filter>
         </activity>
         <!-- Canal de notificación por defecto para FCM -->
         <meta-data
