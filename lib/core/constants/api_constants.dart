@@ -3,7 +3,7 @@ abstract final class ApiConstants {
   /// Backend API (Railway). Override: `--dart-define=API_BASE_URL=...`
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://proyectoequipo32026-test.up.railway.app',
+    defaultValue: 'https://proyectoequipo32026-production-f1f5.up.railway.app',
   );
 
   // ── Usuarios ──────────────────────────────────────────────────────────────
